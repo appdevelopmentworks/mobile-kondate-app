@@ -4,8 +4,6 @@
   command = "npm run build:export"
   # ビルド出力ディレクトリ
   publish = "out"
-  # 除外するファイル・ディレクトリ
-  ignore = "app/api/"
 
 [build.environment]
   # Node.jsバージョン
