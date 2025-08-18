@@ -51,10 +51,89 @@ export default function ResultPage() {
   const [mealSuggestion, setMealSuggestion] = useState<MealSuggestion | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
-  useEffect(() => {
-    // フォームデータに基づいて献立を生成
-    generateMealSuggestion();
-  }, [generateMealSuggestion]);
+  const getMealTitle = useCallback(() => {
+    const mealTypeMap = {
+      breakfast: '朝食',
+      lunch: '昼食', 
+      dinner: '夕食',
+      bento: 'お弁当',
+      party: 'おもてなし'
+    };
+    
+    const mealTypeName = mealTypeMap[formData.mealType || 'dinner'];
+    const nutritionMap = {
+      balanced: 'バランス',
+      protein: 'タンパク質重視',
+      vegetable: '野菜たっぷり',
+      light: 'あっさり'
+    };
+    
+    const nutritionName = nutritionMap[formData.nutritionBalance || 'balanced'];
+    
+    // バリエーションのためにランダムな要素を追加
+    const variations = ['', 'おすすめ', '人気', '定番', '家庭の'];
+    const variation = variations[Math.floor(Math.random() * variations.length)];
+    
+    return `${variation}${nutritionName}の${mealTypeName}セット`.replace(/^の/, '');
+  }, [formData.mealType, formData.nutritionBalance]);
+
+  const getMealDescription = useCallback(() => {
+    const servings = formData.servings || 2;
+    const time = formData.cookingTime === 'unlimited' ? 'じっくり' : `${formData.cookingTime}分`;
+    return `${servings}人分・調理時間${time}で作れる献立です`;
+  }, [formData.servings, formData.cookingTime]);
+
+  const generateShoppingList = useCallback((recipes: Recipe[]) => {
+    const ingredients = new Map();
+    
+    recipes.forEach(recipe => {
+      recipe.ingredients.forEach(ingredient => {
+        if (ingredients.has(ingredient.name)) {
+          // 同じ食材がある場合は数量を合計（簡易実装）
+          const existing = ingredients.get(ingredient.name);
+          ingredients.set(ingredient.name, {
+            ingredient: ingredient.name,
+            amount: `${existing.amount} + ${ingredient.amount}`,
+            checked: false
+          });
+        } else {
+          ingredients.set(ingredient.name, {
+            ingredient: ingredient.name,
+            amount: ingredient.amount + (ingredient.unit || ''),
+            checked: false
+          });
+        }
+      });
+    });
+    
+    return Array.from(ingredients.values());
+  }, []);
+
+  const generateCookingSchedule = useCallback((recipes: Recipe[]) => {
+    interface ScheduleItem {
+      time: string;
+      task: string;
+      recipeId: string;
+      recipeName: string;
+    }
+    
+    const schedule: ScheduleItem[] = [];
+    let currentTime = 0;
+    
+    recipes.forEach(recipe => {
+      recipe.steps.forEach((step, index) => {
+        schedule.push({
+          time: `${Math.floor(currentTime / 60)}:${(currentTime % 60).toString().padStart(2, '0')}`,
+          task: step.description,
+          recipeId: recipe.id,
+          recipeName: recipe.name
+        });
+        currentTime += step.duration || 5;
+      });
+    });
+    
+    return schedule;
+  }, []);
 
   const generateMealSuggestion = useCallback(() => {
     const dishCount = formData.dishCount || 3;
@@ -92,84 +171,12 @@ export default function ResultPage() {
 
     // 履歴に追加
     addToHistory(suggestion);
-  }, [formData, addToHistory]);
+  }, [formData.dishCount, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory, setLoading]);
 
-  const getMealTitle = () => {
-    const mealTypeMap = {
-      breakfast: '朝食',
-      lunch: '昼食', 
-      dinner: '夕食',
-      bento: 'お弁当',
-      party: 'おもてなし'
-    };
-    
-    const mealTypeName = mealTypeMap[formData.mealType || 'dinner'];
-    const nutritionMap = {
-      balanced: 'バランス',
-      protein: 'タンパク質重視',
-      vegetable: '野菜たっぷり',
-      light: 'あっさり'
-    };
-    
-    const nutritionName = nutritionMap[formData.nutritionBalance || 'balanced'];
-    
-    // バリエーションのためにランダムな要素を追加
-    const variations = ['', 'おすすめ', '人気', '定番', '家庭の'];
-    const variation = variations[Math.floor(Math.random() * variations.length)];
-    
-    return `${variation}${nutritionName}の${mealTypeName}セット`.replace(/^の/, '');
-  };
-
-  const getMealDescription = () => {
-    const servings = formData.servings || 2;
-    const time = formData.cookingTime === 'unlimited' ? 'じっくり' : `${formData.cookingTime}分`;
-    return `${servings}人分・調理時間${time}で作れる献立です`;
-  };
-
-  const generateShoppingList = (recipes: Recipe[]) => {
-    const ingredients = new Map();
-    
-    recipes.forEach(recipe => {
-      recipe.ingredients.forEach(ingredient => {
-        if (ingredients.has(ingredient.name)) {
-          // 同じ食材がある場合は数量を合計（簡易実装）
-          const existing = ingredients.get(ingredient.name);
-          ingredients.set(ingredient.name, {
-            ingredient: ingredient.name,
-            amount: `${existing.amount} + ${ingredient.amount}`,
-            checked: false
-          });
-        } else {
-          ingredients.set(ingredient.name, {
-            ingredient: ingredient.name,
-            amount: ingredient.amount + (ingredient.unit || ''),
-            checked: false
-          });
-        }
-      });
-    });
-    
-    return Array.from(ingredients.values());
-  };
-
-  const generateCookingSchedule = (recipes: Recipe[]) => {
-    const schedule = [];
-    let currentTime = 0;
-    
-    recipes.forEach(recipe => {
-      recipe.steps.forEach((step, index) => {
-        schedule.push({
-          time: `${Math.floor(currentTime / 60)}:${(currentTime % 60).toString().padStart(2, '0')}`,
-          task: step.description,
-          recipeId: recipe.id,
-          recipeName: recipe.name
-        });
-        currentTime += step.duration || 5;
-      });
-    });
-    
-    return schedule;
-  };
+  useEffect(() => {
+    // フォームデータに基づいて献立を生成
+    generateMealSuggestion();
+  }, [generateMealSuggestion]);
 
   const handleToggleFavorite = () => {
     if (mealSuggestion) {

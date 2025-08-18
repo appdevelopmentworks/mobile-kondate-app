@@ -1,8 +1,6 @@
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+// 簡易版のクラス名結合ユーティリティ（clsxとtailwind-mergeの代替）
+export function cn(...classes: (string | undefined | null | boolean)[]): string {
+  return classes.filter(Boolean).join(' ');
 }
 
 export function formatTime(minutes: number): string {
@@ -43,7 +41,7 @@ export function generateMealSuggestion(preferences: any) {
   return null;
 }
 
-// クラス名を結合するヘルパー関数（clsxとtailwind-mergeが不要な場合）
-export function classNames(...classes: string[]) {
+// クラス名を結合するヘルパー関数
+export function classNames(...classes: (string | undefined | null | boolean)[]): string {
   return classes.filter(Boolean).join(' ');
 }

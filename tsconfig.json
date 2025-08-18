@@ -47,6 +47,13 @@
     "app/test-store/**/*",
     "app/simple-test/**/*",
     "app/api/**/*",
-    "app/camera/**/*"
+    "app/camera/**/*",
+    "app/meal-form/step-backup/**/*",
+    "**/backup/**/*",
+    "**/*backup*/**/*",
+    "temp-backup/**/*",
+    "test-backup/**/*",
+    "simple-test-backup/**/*",
+    "camera-backup/**/*"
   ]
 }

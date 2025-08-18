@@ -82,7 +82,7 @@ export default function TimeStep() {
               ].map((option) => (
                 <button
                   key={option.value}
-                  onClick={() => setCookingTime(option.value)}
+                  onClick={() => setCookingTime(option.value as '30' | '60' | 'unlimited')}
                   className={`w-full p-4 rounded-xl border-2 transition-all ${
                     cookingTime === option.value
                       ? 'border-orange-400 bg-orange-50'

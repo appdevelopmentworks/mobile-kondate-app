@@ -56,9 +56,9 @@ export default function NutritionStep() {
   }, [formData.nutritionBalance, nutritionBalance]);
 
   const handleSelect = (value: string) => {
-    setNutritionBalance(value as any);
+    setNutritionBalance(value as 'balanced' | 'protein' | 'vegetable' | 'light');
     // 即座にストアも更新
-    updateFormData({ nutritionBalance: value });
+    updateFormData({ nutritionBalance: value as 'balanced' | 'protein' | 'vegetable' | 'light' });
   };
 
   const handleNext = () => {

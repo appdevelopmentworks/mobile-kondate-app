@@ -81,13 +81,13 @@ export default function BudgetStep() {
   };
 
   const handleBudgetChange = (value: string) => {
-    setBudget(value as any);
-    updateFormData({ budget: value });
+    setBudget(value as 'economy' | 'standard' | 'premium');
+    updateFormData({ budget: value as 'economy' | 'standard' | 'premium' });
   };
 
   const handleDifficultyChange = (value: string) => {
-    setDifficulty(value as any);
-    updateFormData({ difficulty: value });
+    setDifficulty(value as 'easy' | 'medium' | 'any');
+    updateFormData({ difficulty: value as 'easy' | 'medium' | 'any' });
   };
 
   const handleNext = () => {
