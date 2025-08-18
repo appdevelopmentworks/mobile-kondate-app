@@ -19,7 +19,8 @@ import {
   Utensils,
   Wallet,
   ChefHat,
-  Edit3
+  Edit3,
+  Home
 } from 'lucide-react';
 
 const mealTypeConfig = {
@@ -79,6 +80,10 @@ export default function ConfirmStep() {
       setLoading(false);
       // エラーハンドリング
     }
+  };
+
+  const handleGoHome = () => {
+    router.push('/');
   };
 
   const mealType = mealTypeConfig[formData.mealType || 'dinner'];
@@ -256,14 +261,24 @@ export default function ConfirmStep() {
         </motion.div>
       </div>
 
-      {/* 作成ボタン */}
-      <div className="px-4 py-4 bg-white border-t border-gray-100">
+      {/* ボタンエリア */}
+      <div className="px-4 py-4 bg-white border-t border-gray-100 space-y-3">
+        {/* 作成ボタン */}
         <button
           onClick={handleSubmit}
           className="btn-primary w-full flex items-center justify-center gap-2"
         >
           <span>献立を作成する</span>
           <ChevronRight className="w-5 h-5" />
+        </button>
+
+        {/* ホームに戻るボタン */}
+        <button
+          onClick={handleGoHome}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 text-gray-700 font-medium rounded-2xl hover:bg-gray-200 active:scale-95 transition-all duration-200"
+        >
+          <Home className="w-5 h-5" />
+          <span>ホームに戻る</span>
         </button>
       </div>
     </div>

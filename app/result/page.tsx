@@ -1,225 +1,462 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useMealStore } from '../../lib/store';
+import { motion, AnimatePresence } from 'framer-motion';
+import MobileLayout from '../../components/layout/MobileLayout';
 import { 
   Clock, 
-  Flame, 
   Users, 
-  ArrowLeft,
-  CheckCircle,
-  Utensils
+  Heart, 
+  ShoppingCart, 
+  ChefHat, 
+  Home, 
+  RefreshCw,
+  Star,
+  Flame,
+  CheckCircle2,
+  Plus
 } from 'lucide-react';
+import { sampleRecipes } from '../../lib/sample-data';
+import type { MealSuggestion, Recipe } from '../../lib/types';
+
+// 献立のバリエーションパターンを定義
+const mealPatterns = {
+  1: [
+    [0], // 肉じゃがのみ
+    [4], // 親子丼のみ
+    [1], // 鮭の塩焼きのみ
+  ],
+  2: [
+    [0, 3], // 肉じゃが + ほうれん草のお浸し
+    [4, 2], // 親子丼 + 味噌汁
+    [1, 3], // 鮭の塩焼き + ほうれん草のお浸し
+  ],
+  3: [
+    [0, 3, 2], // 肉じゃが + ほうれん草のお浸し + 味噌汁
+    [4, 3, 2], // 親子丼 + ほうれん草のお浸し + 味噌汁
+    [1, 0, 2], // 鮭の塩焼き + 肉じゃが + 味噌汁
+  ],
+  4: [
+    [0, 1, 3, 2], // 肉じゃが + 鮭の塩焼き + ほうれん草のお浸し + 味噌汁
+    [4, 1, 3, 2], // 親子丼 + 鮭の塩焼き + ほうれん草のお浸し + 味噌汁
+    [0, 4, 3, 2], // 肉じゃが + 親子丼 + ほうれん草のお浸し + 味噌汁
+  ],
+};
 
 export default function ResultPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [meal, setMeal] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
+  const { formData, addToHistory, toggleFavorite, favorites, setLoading, isLoading } = useMealStore();
+  const [mealSuggestion, setMealSuggestion] = useState<MealSuggestion | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
   useEffect(() => {
-    try {
-      // URLパラメータからデータを取得
-      const dataParam = searchParams.get('data');
-      
-      if (dataParam) {
-        const decodedData = JSON.parse(decodeURIComponent(dataParam));
-        setMeal(decodedData);
-        console.log('受信した献立データ:', decodedData);
-      } else {
-        setError('献立データが見つかりませんでした');
-      }
-    } catch (error) {
-      console.error('Failed to parse meal data:', error);
-      setError('データの読み込みに失敗しました');
-    } finally {
-      setLoading(false);
+    // フォームデータに基づいて献立を生成
+    generateMealSuggestion();
+  }, []);
+
+  const generateMealSuggestion = () => {
+    const dishCount = formData.dishCount || 3;
+    const patterns = mealPatterns[dishCount as keyof typeof mealPatterns] || mealPatterns[3];
+    
+    // ランダムにパターンを選択
+    const randomPattern = patterns[Math.floor(Math.random() * patterns.length)];
+    const selectedRecipes: Recipe[] = randomPattern.map(index => sampleRecipes[index]);
+
+    // 総カロリーと調理時間を計算
+    const totalCalories = selectedRecipes.reduce((sum, recipe) => sum + recipe.nutrition.calories, 0);
+    const totalTime = Math.max(...selectedRecipes.map(recipe => recipe.cookingTime));
+
+    // 買い物リストを生成
+    const shoppingList = generateShoppingList(selectedRecipes);
+
+    // 調理スケジュールを生成
+    const cookingSchedule = generateCookingSchedule(selectedRecipes);
+
+    const suggestion: MealSuggestion = {
+      id: `meal-${Date.now()}`,
+      title: getMealTitle(),
+      description: getMealDescription(),
+      recipes: selectedRecipes,
+      totalTime,
+      totalCalories,
+      shoppingList,
+      cookingSchedule,
+      createdAt: new Date(),
+    };
+
+    setMealSuggestion(suggestion);
+    setLoading(false);
+    setIsRegenerating(false);
+
+    // 履歴に追加
+    addToHistory(suggestion);
+  };
+
+  const getMealTitle = () => {
+    const mealTypeMap = {
+      breakfast: '朝食',
+      lunch: '昼食', 
+      dinner: '夕食',
+      bento: 'お弁当',
+      party: 'おもてなし'
+    };
+    
+    const mealTypeName = mealTypeMap[formData.mealType || 'dinner'];
+    const nutritionMap = {
+      balanced: 'バランス',
+      protein: 'タンパク質重視',
+      vegetable: '野菜たっぷり',
+      light: 'あっさり'
+    };
+    
+    const nutritionName = nutritionMap[formData.nutritionBalance || 'balanced'];
+    
+    // バリエーションのためにランダムな要素を追加
+    const variations = ['', 'おすすめ', '人気', '定番', '家庭の'];
+    const variation = variations[Math.floor(Math.random() * variations.length)];
+    
+    return `${variation}${nutritionName}の${mealTypeName}セット`.replace(/^の/, '');
+  };
+
+  const getMealDescription = () => {
+    const servings = formData.servings || 2;
+    const time = formData.cookingTime === 'unlimited' ? 'じっくり' : `${formData.cookingTime}分`;
+    return `${servings}人分・調理時間${time}で作れる献立です`;
+  };
+
+  const generateShoppingList = (recipes: Recipe[]) => {
+    const ingredients = new Map();
+    
+    recipes.forEach(recipe => {
+      recipe.ingredients.forEach(ingredient => {
+        if (ingredients.has(ingredient.name)) {
+          // 同じ食材がある場合は数量を合計（簡易実装）
+          const existing = ingredients.get(ingredient.name);
+          ingredients.set(ingredient.name, {
+            ingredient: ingredient.name,
+            amount: `${existing.amount} + ${ingredient.amount}`,
+            checked: false
+          });
+        } else {
+          ingredients.set(ingredient.name, {
+            ingredient: ingredient.name,
+            amount: ingredient.amount + (ingredient.unit || ''),
+            checked: false
+          });
+        }
+      });
+    });
+    
+    return Array.from(ingredients.values());
+  };
+
+  const generateCookingSchedule = (recipes: Recipe[]) => {
+    const schedule = [];
+    let currentTime = 0;
+    
+    recipes.forEach(recipe => {
+      recipe.steps.forEach((step, index) => {
+        schedule.push({
+          time: `${Math.floor(currentTime / 60)}:${(currentTime % 60).toString().padStart(2, '0')}`,
+          task: step.description,
+          recipeId: recipe.id,
+          recipeName: recipe.name
+        });
+        currentTime += step.duration || 5;
+      });
+    });
+    
+    return schedule;
+  };
+
+  const handleToggleFavorite = () => {
+    if (mealSuggestion) {
+      toggleFavorite(mealSuggestion.id);
     }
-  }, [searchParams]);
-  
-  if (loading) {
+  };
+
+  const handleGoHome = () => {
+    router.push('/');
+  };
+
+  const handleCreateNew = async () => {
+    setIsRegenerating(true);
+    
+    // 少し遅延を入れてローディング感を演出
+    setTimeout(() => {
+      generateMealSuggestion();
+    }, 800);
+  };
+
+  if ((isLoading || !mealSuggestion) && !isRegenerating) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">献立を読み込んでいます...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (error || !meal) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="text-6xl mb-4">😕</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">エラーが発生しました</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => router.push('/')}
-            className="bg-purple-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-600 transition-colors"
+      <MobileLayout title="献立作成中" showBack={true}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-center"
           >
-            ホームに戻る
-          </button>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="w-16 h-16 mx-auto mb-4"
+            >
+              <ChefHat className="w-16 h-16 text-pink-500" />
+            </motion.div>
+            <p className="text-gray-700 font-medium">美味しい献立を作成中...</p>
+          </motion.div>
         </div>
-      </div>
+      </MobileLayout>
     );
   }
+
+  const isFavorite = mealSuggestion ? favorites.includes(mealSuggestion.id) : false;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
-      {/* ヘッダー */}
-      <div className="bg-white shadow-sm p-4">
-        <div className="flex items-center">
-          <button
-            onClick={() => router.back()}
-            className="mr-4 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <h1 className="text-xl font-bold text-gray-800">献立結果</h1>
-        </div>
-      </div>
+    <MobileLayout title="献立完成！" showBack={true} showBottomNav={false}>
+      <div className="px-4 py-6 space-y-6">
+        <AnimatePresence mode="wait">
+          {isRegenerating ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center justify-center min-h-[60vh]"
+            >
+              <div className="text-center bg-white/90 backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  className="w-16 h-16 mx-auto mb-4"
+                >
+                  <RefreshCw className="w-16 h-16 text-pink-500" />
+                </motion.div>
+                <p className="text-gray-700 font-medium">新しい献立を考え中...</p>
+                <p className="text-gray-600 text-sm mt-1">少々お待ちください</p>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="content"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-6"
+            >
+              {/* ヘッダー */}
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg"
+              >
+                <div className="text-6xl mb-4">🎉</div>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                  {mealSuggestion?.title}
+                </h1>
+                <p className="text-gray-600">{mealSuggestion?.description}</p>
+              </motion.div>
 
-      <div className="p-4 max-w-2xl mx-auto">
-        {/* 献立タイトル */}
-        <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
-          <div className="text-center mb-4">
-            <div className="text-6xl mb-4">🍽️</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-              {meal.title}
-            </h2>
-            <p className="text-gray-600">
-              {meal.description}
-            </p>
-          </div>
-          
-          {/* 基本情報 */}
-          <div className="grid grid-cols-3 gap-3 mt-6">
-            <div className="text-center p-3 bg-purple-50 rounded-lg">
-              <Clock className="w-5 h-5 text-purple-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-600">調理時間</p>
-              <p className="font-semibold text-sm">
-                {meal.totalCookingTime}分
-              </p>
-            </div>
-            
-            <div className="text-center p-3 bg-orange-50 rounded-lg">
-              <Flame className="w-5 h-5 text-orange-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-600">カロリー</p>
-              <p className="font-semibold text-sm">
-                {meal.totalCalories}kcal
-              </p>
-            </div>
-            
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <Users className="w-5 h-5 text-green-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-600">人数</p>
-              <p className="font-semibold text-sm">
-                {meal.servings || 2}人分
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* レシピ一覧 */}
-        <div className="space-y-4 mb-6">
-          <h3 className="text-xl font-bold text-gray-800 flex items-center">
-            <Utensils className="w-6 h-6 mr-2 text-purple-500" />
-            レシピ
-          </h3>
-          
-          {meal.recipes && meal.recipes.length > 0 ? (
-            meal.recipes.map((recipe: any, index: number) => (
-              <div key={index} className="bg-white rounded-xl p-6 shadow-lg">
-                <div className="flex items-start justify-between mb-3">
+              {/* サマリー情報 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-2xl p-6 shadow-lg"
+              >
+                <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
-                    <span className="inline-block px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-medium mb-2">
-                      {recipe.category}
-                    </span>
-                    <h4 className="text-lg font-semibold text-gray-800">
-                      {recipe.name}
-                    </h4>
+                    <Clock className="w-8 h-8 mx-auto mb-2" />
+                    <p className="text-lg font-bold">{mealSuggestion?.totalTime}分</p>
+                    <p className="text-sm text-white/80">調理時間</p>
                   </div>
-                  <div className="text-right text-sm text-gray-500">
-                    <div>{recipe.cookingTime}分</div>
-                    <div>{recipe.calories}kcal</div>
+                  <div>
+                    <Flame className="w-8 h-8 mx-auto mb-2" />
+                    <p className="text-lg font-bold">{mealSuggestion?.totalCalories}</p>
+                    <p className="text-sm text-white/80">kcal</p>
+                  </div>
+                  <div>
+                    <Users className="w-8 h-8 mx-auto mb-2" />
+                    <p className="text-lg font-bold">{formData.servings}人分</p>
+                    <p className="text-sm text-white/80">分量</p>
                   </div>
                 </div>
-                
-                {/* 材料 */}
-                {recipe.ingredients && recipe.ingredients.length > 0 && (
-                  <div className="mb-4">
-                    <h5 className="font-medium text-gray-800 mb-2">📋 材料</h5>
-                    <div className="grid grid-cols-2 gap-1 text-sm">
-                      {recipe.ingredients.map((ingredient: string, idx: number) => (
-                        <div key={idx} className="flex items-center">
-                          <CheckCircle className="w-3 h-3 text-green-500 mr-2 flex-shrink-0" />
-                          <span className="text-gray-600">{ingredient}</span>
+              </motion.div>
+
+              {/* レシピ一覧 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <ChefHat className="w-5 h-5 text-pink-500" />
+                  今日の献立
+                </h2>
+                <div className="space-y-3">
+                  {mealSuggestion?.recipes.map((recipe, index) => (
+                    <motion.div
+                      key={recipe.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + index * 0.1 }}
+                      className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-800 mb-1">{recipe.name}</h3>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              {recipe.cookingTime}分
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Flame className="w-4 h-4" />
+                              {recipe.nutrition.calories}kcal
+                            </span>
+                            <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
+                              {recipe.difficulty === 'easy' ? '簡単' : recipe.difficulty === 'medium' ? '普通' : '上級'}
+                            </span>
+                          </div>
                         </div>
-                      ))}
+                        <div className="text-2xl">
+                          {recipe.category === 'main' ? '🍖' : 
+                           recipe.category === 'side' ? '🥬' : 
+                           recipe.category === 'soup' ? '🍲' : '🍽️'}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* 買い物リスト */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4"
+              >
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <ShoppingCart className="w-5 h-5 text-green-500" />
+                  買い物リスト
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {mealSuggestion?.shoppingList.slice(0, 8).map((item, index) => (
+                    <div key={index} className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="w-4 h-4 text-gray-300" />
+                      <span className="text-gray-700">{item.ingredient}</span>
+                      <span className="text-gray-500 text-xs">{item.amount}</span>
                     </div>
-                  </div>
+                  ))}
+                </div>
+                {(mealSuggestion?.shoppingList.length || 0) > 8 && (
+                  <p className="text-center text-gray-500 text-sm mt-3">
+                    他 {(mealSuggestion?.shoppingList.length || 0) - 8} 品
+                  </p>
                 )}
-                
-                {/* 手順 */}
-                {recipe.instructions && recipe.instructions.length > 0 && (
-                  <div>
-                    <h5 className="font-medium text-gray-800 mb-2">👩‍🍳 作り方</h5>
-                    <ol className="space-y-1 text-sm">
-                      {recipe.instructions.map((step: string, idx: number) => (
-                        <li key={idx} className="flex">
-                          <span className="bg-purple-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2 flex-shrink-0 mt-0.5">
-                            {idx + 1}
-                          </span>
-                          <span className="text-gray-600">{step}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
+              </motion.div>
+
+              {/* 調理スケジュール */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+                className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4"
+              >
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-blue-500" />
+                  調理スケジュール
+                </h3>
+                <div className="space-y-2">
+                  {mealSuggestion?.cookingSchedule.slice(0, 6).map((schedule, index) => (
+                    <div key={index} className="flex items-center gap-3 text-sm">
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-mono min-w-[50px]">
+                        {schedule.time}
+                      </span>
+                      <span className="text-gray-700 flex-1">{schedule.task}</span>
+                      <span className="text-gray-500 text-xs">{schedule.recipeName}</span>
+                    </div>
+                  ))}
+                </div>
+                {(mealSuggestion?.cookingSchedule.length || 0) > 6 && (
+                  <p className="text-center text-gray-500 text-sm mt-3">
+                    他 {(mealSuggestion?.cookingSchedule.length || 0) - 6} ステップ
+                  </p>
                 )}
-              </div>
-            ))
-          ) : (
-            <div className="bg-white rounded-xl p-6 shadow-lg text-center">
-              <p className="text-gray-500">レシピが見つかりませんでした</p>
-            </div>
+              </motion.div>
+
+              {/* アクションボタン */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="space-y-4"
+              >
+                {/* お気に入り登録 */}
+                <button
+                  onClick={handleToggleFavorite}
+                  className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl font-semibold transition-all duration-200 shadow-lg ${
+                    isFavorite
+                      ? 'bg-pink-500 text-white'
+                      : 'bg-white/90 backdrop-blur-sm border-2 border-pink-500 text-pink-500 hover:bg-white'
+                  }`}
+                >
+                  <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                  <span>{isFavorite ? 'お気に入り登録済み' : 'お気に入りに登録'}</span>
+                </button>
+
+                {/* 新しい献立を作成 */}
+                <button
+                  onClick={handleCreateNew}
+                  disabled={isRegenerating}
+                  className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl font-semibold transition-all duration-200 shadow-lg ${
+                    isRegenerating
+                      ? 'bg-gray-200/90 backdrop-blur-sm text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 active:scale-95'
+                  }`}
+                >
+                  <RefreshCw className={`w-5 h-5 ${isRegenerating ? 'animate-spin' : ''}`} />
+                  <span>{isRegenerating ? '生成中...' : '他の献立を見る'}</span>
+                </button>
+
+                {/* ホームに戻る */}
+                <button
+                  onClick={handleGoHome}
+                  className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-white/90 backdrop-blur-sm text-gray-700 font-semibold rounded-2xl hover:bg-white active:scale-95 transition-all duration-200 shadow-lg"
+                >
+                  <Home className="w-5 h-5" />
+                  <span>ホームに戻る</span>
+                </button>
+              </motion.div>
+
+              {/* 調理のヒント */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="bg-gradient-to-br from-yellow-100/90 to-orange-100/90 backdrop-blur-sm border border-yellow-200/60 rounded-2xl p-4 shadow-lg"
+              >
+                <h3 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                  <Star className="w-5 h-5" />
+                  調理のコツ
+                </h3>
+                <div className="text-sm text-yellow-700 space-y-1">
+                  <p>• 同時進行で効率よく調理しましょう</p>
+                  <p>• 煮込み料理は最初に始めるのがおすすめ</p>
+                  <p>• 野菜の下ごしらえは事前に済ませておくと楽です</p>
+                </div>
+              </motion.div>
+
+              {/* 底部スペース */}
+              <div className="h-8"></div>
+            </motion.div>
           )}
-        </div>
-
-        {/* 調理のコツ */}
-        {meal.tips && meal.tips.length > 0 && (
-          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6 shadow-lg mb-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-3">💡 調理のコツ</h3>
-            <ul className="space-y-2">
-              {meal.tips.map((tip: string, index: number) => (
-                <li key={index} className="flex items-start text-sm text-gray-700">
-                  <span className="text-orange-500 mr-2">•</span>
-                  {tip}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* アクションボタン */}
-        <div className="space-y-3">
-          <button
-            onClick={() => router.push('/meal-form/quick')}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all"
-          >
-            ✨ 別の献立を作成
-          </button>
-          
-          <button
-            onClick={() => router.push('/')}
-            className="w-full bg-white text-purple-600 font-bold py-4 rounded-xl shadow-lg border-2 border-purple-200 active:scale-95 transition-all"
-          >
-            🏠 ホームに戻る
-          </button>
-        </div>
+        </AnimatePresence>
       </div>
-    </div>
+    </MobileLayout>
   );
 }

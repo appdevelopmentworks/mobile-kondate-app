@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMealStore } from '../../lib/store';
 import { motion } from 'framer-motion';
-import { Plus, X, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Plus, X, ChevronRight, AlertTriangle, Home } from 'lucide-react';
 import { allergyItems, commonIngredients } from '../../lib/sample-data';
 
 export default function AvoidIngredientsStep() {
@@ -54,6 +54,10 @@ export default function AvoidIngredientsStep() {
   const handleSkip = () => {
     updateFormData({ avoidIngredients: [], allergies: [] });
     router.push('/meal-form/5');
+  };
+
+  const handleGoHome = () => {
+    router.push('/');
   };
 
   return (
@@ -191,7 +195,8 @@ export default function AvoidIngredientsStep() {
       </div>
 
       {/* ボタンエリア */}
-      <div className="px-4 py-4 bg-white border-t border-gray-100 space-y-2">
+      <div className="px-4 py-4 bg-white border-t border-gray-100 space-y-3">
+        {/* 次へボタン */}
         <button
           onClick={handleNext}
           className="btn-primary w-full flex items-center justify-center gap-2"
@@ -199,11 +204,22 @@ export default function AvoidIngredientsStep() {
           <span>次へ</span>
           <ChevronRight className="w-5 h-5" />
         </button>
+
+        {/* スキップボタン */}
         <button
           onClick={handleSkip}
-          className="w-full py-2 text-gray-600 text-sm"
+          className="w-full py-3 text-gray-600 font-medium hover:text-gray-800 transition-colors"
         >
           スキップ
+        </button>
+
+        {/* ホームに戻るボタン */}
+        <button
+          onClick={handleGoHome}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 text-gray-700 font-medium rounded-2xl hover:bg-gray-200 active:scale-95 transition-all duration-200"
+        >
+          <Home className="w-5 h-5" />
+          <span>ホームに戻る</span>
         </button>
       </div>
     </div>

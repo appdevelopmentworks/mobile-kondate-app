@@ -1,0 +1,62 @@
+# Netlify設定ファイル
+[build]
+  # ビルドコマンド（本番環境用）
+  command = "npm run build:export"
+  # ビルド出力ディレクトリ
+  publish = "out"
+  # 除外するファイル・ディレクトリ
+  ignore = "app/api/"
+
+[build.environment]
+  # Node.jsバージョン
+  NODE_VERSION = "18"
+  # NPMのキャッシュ無効化を防ぐ
+  NPM_FLAGS = "--production=false"
+  # 本番環境設定
+  NODE_ENV = "production"
+
+# SPA用のリダイレクト設定
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# ヘッダー設定（PWA用）
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# PWAのマニフェストとサービスワーカー用
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# 動的ルート用のリダイレクト（修正済みの静的ルート用）
+[[redirects]]
+  from = "/meal-form/:step"
+  to = "/meal-form/:step/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/result"
+  to = "/result/index.html"
+  status = 200
+
+# APIエンドポイントへのアクセスを無効化（セキュリティ）
+[[redirects]]
+  from = "/api/*"
+  to = "/404"
+  status = 404

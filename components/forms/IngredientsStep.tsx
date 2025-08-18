@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMealStore } from '../../lib/store';
 import { motion } from 'framer-motion';
-import { Plus, X, ChevronRight } from 'lucide-react';
+import { Plus, X, ChevronRight, Home } from 'lucide-react';
 import { commonIngredients } from '../../lib/sample-data';
 
 export default function IngredientsStep() {
@@ -40,6 +40,10 @@ export default function IngredientsStep() {
     router.push('/meal-form/4');
   };
 
+  const handleGoHome = () => {
+    router.push('/');
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-120px)]">
       <div className="flex-1 px-4 py-6 overflow-y-auto">
@@ -48,7 +52,7 @@ export default function IngredientsStep() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          <div className="text-center mb-6">
+          <div className="text-center mb-6 bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
             <h2 className="text-xl font-bold text-gray-800 mb-2">
               使いたい食材はありますか？
             </h2>
@@ -58,7 +62,7 @@ export default function IngredientsStep() {
           </div>
 
           {/* カスタム入力 */}
-          <div className="bg-white rounded-2xl shadow-md p-4">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -80,7 +84,7 @@ export default function IngredientsStep() {
 
           {/* 選択された食材 */}
           {selectedIngredients.length > 0 && (
-            <div className="bg-orange-50 rounded-2xl p-4">
+            <div className="bg-orange-50/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
               <h3 className="font-semibold text-gray-800 mb-3">選択中の食材</h3>
               <div className="flex flex-wrap gap-2">
                 {selectedIngredients.map((ingredient) => (
@@ -100,7 +104,7 @@ export default function IngredientsStep() {
           )}
 
           {/* よく使う食材 */}
-          <div className="bg-white rounded-2xl shadow-md p-4">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4">
             <h3 className="font-semibold text-gray-800 mb-3">よく使う食材</h3>
             <div className="flex flex-wrap gap-2">
               {commonIngredients.map((ingredient, index) => (
@@ -123,7 +127,8 @@ export default function IngredientsStep() {
       </div>
 
       {/* ボタンエリア */}
-      <div className="px-4 py-4 bg-white border-t border-gray-100 space-y-2">
+      <div className="px-4 py-4 bg-white/95 backdrop-blur-sm border-t border-white/30 space-y-3">
+        {/* 次へボタン */}
         <button
           onClick={handleNext}
           className="btn-primary w-full flex items-center justify-center gap-2"
@@ -131,11 +136,22 @@ export default function IngredientsStep() {
           <span>次へ</span>
           <ChevronRight className="w-5 h-5" />
         </button>
+
+        {/* スキップボタン */}
         <button
           onClick={handleSkip}
-          className="w-full py-2 text-gray-600 text-sm"
+          className="w-full py-3 text-gray-600 font-medium hover:text-gray-800 transition-colors"
         >
           スキップ
+        </button>
+
+        {/* ホームに戻るボタン */}
+        <button
+          onClick={handleGoHome}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white/90 backdrop-blur-sm text-gray-700 font-medium rounded-2xl hover:bg-white active:scale-95 transition-all duration-200 shadow-md"
+        >
+          <Home className="w-5 h-5" />
+          <span>ホームに戻る</span>
         </button>
       </div>
     </div>

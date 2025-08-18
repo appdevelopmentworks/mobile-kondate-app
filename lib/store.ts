@@ -19,6 +19,7 @@ interface MealFormState {
   addToHistory: (result: MealSuggestion) => void;
   addToFavorites: (id: string) => void;
   removeFromFavorites: (id: string) => void;
+  toggleFavorite: (id: string) => void; // 新規追加
   setLoading: (loading: boolean) => void;
   resetForm: () => void;
 }
@@ -70,21 +71,45 @@ export const useMealStore = create<MealFormState>((set, get) => ({
     });
   },
   
-  setResult: (result: MealSuggestion) => set({ lastResult: result }),
+  setResult: (result: MealSuggestion) => {
+    console.log('ストア: 結果設定', result);
+    set({ lastResult: result });
+  },
   
-  addToHistory: (result: MealSuggestion) => set((state) => ({
-    history: [result, ...state.history.slice(0, 9)] // Keep last 10
-  })),
+  addToHistory: (result: MealSuggestion) => {
+    console.log('ストア: 履歴追加', result.title);
+    set((state) => ({
+      history: [result, ...state.history.slice(0, 9)] // Keep last 10
+    }));
+  },
   
-  addToFavorites: (id: string) => set((state) => ({
-    favorites: state.favorites.includes(id) 
-      ? state.favorites 
-      : [...state.favorites, id]
-  })),
+  addToFavorites: (id: string) => {
+    console.log('ストア: お気に入り追加', id);
+    set((state) => ({
+      favorites: state.favorites.includes(id) 
+        ? state.favorites 
+        : [...state.favorites, id]
+    }));
+  },
   
-  removeFromFavorites: (id: string) => set((state) => ({
-    favorites: state.favorites.filter(fav => fav !== id)
-  })),
+  removeFromFavorites: (id: string) => {
+    console.log('ストア: お気に入り削除', id);
+    set((state) => ({
+      favorites: state.favorites.filter(fav => fav !== id)
+    }));
+  },
+
+  toggleFavorite: (id: string) => {
+    console.log('ストア: お気に入りトグル', id);
+    set((state) => {
+      const isCurrentlyFavorite = state.favorites.includes(id);
+      return {
+        favorites: isCurrentlyFavorite 
+          ? state.favorites.filter(fav => fav !== id)
+          : [...state.favorites, id]
+      };
+    });
+  },
   
   setLoading: (loading: boolean) => {
     console.log('ストア: ローディング状態変更', loading);

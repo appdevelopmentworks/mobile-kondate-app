@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMealStore } from '../../lib/store';
 import { motion } from 'framer-motion';
-import { ChevronRight, Utensils, Wallet, ChefHat } from 'lucide-react';
+import { ChevronRight, Utensils, Wallet, ChefHat, Home } from 'lucide-react';
 
 const dishCountOptions = [
   { value: 1, label: '1品', description: 'メイン料理のみ' },
@@ -30,7 +30,7 @@ const budgetOptions = [
     value: 'premium',
     label: 'ちょっと豪華',
     description: '800円〜/人',
-    color: 'from-purple-400 to-pink-400',
+    color: 'from-orange-400 to-red-400',
   },
 ];
 
@@ -76,27 +76,27 @@ export default function BudgetStep() {
   }, [formData.dishCount, formData.budget, formData.difficulty]);
 
   const handleDishCountChange = (value: number) => {
-    console.log('品数選択:', value);
     setDishCount(value);
     updateFormData({ dishCount: value });
   };
 
   const handleBudgetChange = (value: string) => {
-    console.log('予算選択:', value);
     setBudget(value as any);
     updateFormData({ budget: value });
   };
 
   const handleDifficultyChange = (value: string) => {
-    console.log('難易度選択:', value);
     setDifficulty(value as any);
     updateFormData({ difficulty: value });
   };
 
   const handleNext = () => {
-    console.log('次へボタンクリック - 設定内容:', { dishCount, budget, difficulty });
     updateFormData({ dishCount, budget, difficulty });
     router.push('/meal-form/7');
+  };
+
+  const handleGoHome = () => {
+    router.push('/');
   };
 
   return (
@@ -113,13 +113,6 @@ export default function BudgetStep() {
             </h2>
             <p className="text-sm text-gray-600">
               ご希望に合わせて献立を調整します
-            </p>
-          </div>
-
-          {/* デバッグ情報 */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-            <p className="text-sm text-yellow-800">
-              品数: {dishCount}, 予算: {budget}, 難易度: {difficulty}
             </p>
           </div>
 
@@ -211,7 +204,7 @@ export default function BudgetStep() {
           {/* 難易度選択 */}
           <div className="bg-white rounded-2xl shadow-md p-4">
             <div className="flex items-center gap-2 mb-4">
-              <ChefHat className="w-5 h-5 text-purple-500" />
+              <ChefHat className="w-5 h-5 text-blue-500" />
               <h3 className="font-semibold text-gray-800">調理の難易度</h3>
             </div>
             
@@ -222,20 +215,20 @@ export default function BudgetStep() {
                   onClick={() => handleDifficultyChange(option.value)}
                   className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
                     difficulty === option.value
-                      ? 'border-purple-500 bg-purple-100 ring-2 ring-purple-300 ring-opacity-50 transform scale-105'
-                      : 'border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50'
+                      ? 'border-blue-500 bg-blue-100 ring-2 ring-blue-300 ring-opacity-50 transform scale-105'
+                      : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50'
                   }`}
                 >
                   <div className="flex items-center gap-3 relative">
                     {difficulty === option.value && (
-                      <div className="absolute -top-2 -right-2 bg-purple-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                      <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
                         ✓
                       </div>
                     )}
                     <span className="text-xl">{option.icon}</span>
                     <div className="text-left flex-1">
                       <p className={`font-semibold ${
-                        difficulty === option.value ? 'text-purple-800' : 'text-gray-800'
+                        difficulty === option.value ? 'text-blue-800' : 'text-gray-800'
                       }`}>
                         {option.label}
                         {difficulty === option.value && <span className="ml-2">🎯</span>}
@@ -243,7 +236,7 @@ export default function BudgetStep() {
                       <p className="text-sm text-gray-600">{option.description}</p>
                     </div>
                     <div className={`text-gray-400 text-xl transition-all duration-200 ${
-                      difficulty === option.value ? 'text-purple-500 scale-125' : ''
+                      difficulty === option.value ? 'text-blue-500 scale-125' : ''
                     }`}>
                       {difficulty === option.value ? '✓' : ''}
                     </div>
@@ -267,14 +260,24 @@ export default function BudgetStep() {
         </motion.div>
       </div>
 
-      {/* 次へボタン */}
-      <div className="px-4 py-4 bg-white border-t border-gray-100">
+      {/* ボタンエリア */}
+      <div className="px-4 py-4 bg-white border-t border-gray-100 space-y-3">
+        {/* 次へボタン */}
         <button
           onClick={handleNext}
           className="btn-primary w-full flex items-center justify-center gap-2"
         >
           <span>次へ</span>
           <ChevronRight className="w-5 h-5" />
+        </button>
+
+        {/* ホームに戻るボタン */}
+        <button
+          onClick={handleGoHome}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 text-gray-700 font-medium rounded-2xl hover:bg-gray-200 active:scale-95 transition-all duration-200"
+        >
+          <Home className="w-5 h-5" />
+          <span>ホームに戻る</span>
         </button>
       </div>
     </div>

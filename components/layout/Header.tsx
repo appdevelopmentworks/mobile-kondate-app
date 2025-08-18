@@ -19,13 +19,13 @@ export default function Header({
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-orange-100">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-white/30">
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center gap-2">
           {showBack && (
             <button
               onClick={() => router.back()}
-              className="touch-target p-2 -ml-2 rounded-lg active:bg-gray-100 transition-colors"
+              className="touch-target p-2 -ml-2 rounded-lg active:bg-white/20 transition-colors"
               aria-label="戻る"
             >
               <ChevronLeft className="w-6 h-6 text-gray-700" />
@@ -39,7 +39,7 @@ export default function Header({
         {showMenu && (
           <button
             onClick={onMenuClick}
-            className="touch-target p-2 -mr-2 rounded-lg active:bg-gray-100 transition-colors"
+            className="touch-target p-2 -mr-2 rounded-lg active:bg-white/20 transition-colors"
             aria-label="メニュー"
           >
             <Menu className="w-6 h-6 text-gray-700" />

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMealStore } from '../../lib/store';
 import { motion } from 'framer-motion';
-import { ChevronRight, Heart, Beef, Leaf, Feather } from 'lucide-react';
+import { ChevronRight, Heart, Beef, Leaf, Feather, Home } from 'lucide-react';
 
 const nutritionOptions = [
   {
@@ -56,17 +56,18 @@ export default function NutritionStep() {
   }, [formData.nutritionBalance]);
 
   const handleSelect = (value: string) => {
-    console.log('栄養バランス選択:', value);
     setNutritionBalance(value as any);
     // 即座にストアも更新
     updateFormData({ nutritionBalance: value });
   };
 
   const handleNext = () => {
-    console.log('次へボタンクリック - 選択された栄養バランス:', nutritionBalance);
     updateFormData({ nutritionBalance });
-    console.log('ストア更新完了 - 次のページに遷移します');
     router.push('/meal-form/6');
+  };
+
+  const handleGoHome = () => {
+    router.push('/');
   };
 
   return (
@@ -83,13 +84,6 @@ export default function NutritionStep() {
             </h2>
             <p className="text-sm text-gray-600">
               健康目標や体調に合わせてお選びください
-            </p>
-          </div>
-
-          {/* デバッグ情報 */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-            <p className="text-sm text-yellow-800">
-              現在の選択: {nutritionBalance}
             </p>
           </div>
 
@@ -170,17 +164,24 @@ export default function NutritionStep() {
         </motion.div>
       </div>
 
-      {/* 次へボタン */}
-      <div className="px-4 py-4 bg-white border-t border-gray-100">
+      {/* ボタンエリア */}
+      <div className="px-4 py-4 bg-white border-t border-gray-100 space-y-3">
+        {/* 次へボタン */}
         <button
           onClick={handleNext}
           className="btn-primary w-full flex items-center justify-center gap-2 relative overflow-hidden"
         >
           <span>次へ</span>
           <ChevronRight className="w-5 h-5" />
-          
-          {/* ボタンクリック時のエフェクト */}
-          <div className="absolute inset-0 bg-white/20 transform scale-x-0 group-active:scale-x-100 transition-transform origin-left"></div>
+        </button>
+
+        {/* ホームに戻るボタン */}
+        <button
+          onClick={handleGoHome}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 text-gray-700 font-medium rounded-2xl hover:bg-gray-200 active:scale-95 transition-all duration-200"
+        >
+          <Home className="w-5 h-5" />
+          <span>ホームに戻る</span>
         </button>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMealStore } from '../../lib/store';
 import { motion } from 'framer-motion';
-import { Users, Clock, ChevronRight } from 'lucide-react';
+import { Users, Clock, ChevronRight, Home } from 'lucide-react';
 
 export default function TimeStep() {
   const router = useRouter();
@@ -17,6 +17,10 @@ export default function TimeStep() {
     router.push('/meal-form/3');
   };
 
+  const handleGoHome = () => {
+    router.push('/');
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-120px)]">
       <div className="flex-1 px-4 py-6 overflow-y-auto">
@@ -25,7 +29,7 @@ export default function TimeStep() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          <div className="text-center mb-6">
+          <div className="text-center mb-6 bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
             <h2 className="text-xl font-bold text-gray-800 mb-2">
               人数と調理時間を教えてください
             </h2>
@@ -35,7 +39,7 @@ export default function TimeStep() {
           </div>
 
           {/* 人数選択 */}
-          <div className="bg-white rounded-2xl shadow-md p-4">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-orange-500" />
               <h3 className="font-semibold text-gray-800">人数</h3>
@@ -64,7 +68,7 @@ export default function TimeStep() {
           </div>
 
           {/* 調理時間選択 */}
-          <div className="bg-white rounded-2xl shadow-md p-4">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-5 h-5 text-orange-500" />
               <h3 className="font-semibold text-gray-800">調理時間</h3>
@@ -96,14 +100,24 @@ export default function TimeStep() {
         </motion.div>
       </div>
 
-      {/* 次へボタン */}
-      <div className="px-4 py-4 bg-white border-t border-gray-100">
+      {/* ボタンエリア */}
+      <div className="px-4 py-4 bg-white/95 backdrop-blur-sm border-t border-white/30 space-y-3">
+        {/* 次へボタン */}
         <button
           onClick={handleNext}
           className="btn-primary w-full flex items-center justify-center gap-2"
         >
           <span>次へ</span>
           <ChevronRight className="w-5 h-5" />
+        </button>
+
+        {/* ホームに戻るボタン */}
+        <button
+          onClick={handleGoHome}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white/90 backdrop-blur-sm text-gray-700 font-medium rounded-2xl hover:bg-white active:scale-95 transition-all duration-200 shadow-md"
+        >
+          <Home className="w-5 h-5" />
+          <span>ホームに戻る</span>
         </button>
       </div>
     </div>
