@@ -130,12 +130,18 @@ export default function QuickMealPage() {
   };
 
   const generateShoppingList = (recipes: Recipe[]) => {
-    const ingredients = new Map();
+    interface ShoppingItem {
+      ingredient: string;
+      amount: string;
+      checked: boolean;
+    }
+    
+    const ingredients = new Map<string, ShoppingItem>();
     
     recipes.forEach(recipe => {
       recipe.ingredients.forEach(ingredient => {
         if (ingredients.has(ingredient.name)) {
-          const existing = ingredients.get(ingredient.name);
+          const existing = ingredients.get(ingredient.name)!;
           ingredients.set(ingredient.name, {
             ingredient: ingredient.name,
             amount: `${existing.amount} + ${ingredient.amount}`,
@@ -155,7 +161,14 @@ export default function QuickMealPage() {
   };
 
   const generateCookingSchedule = (recipes: Recipe[]) => {
-    const schedule = [];
+    interface ScheduleItem {
+      time: string;
+      task: string;
+      recipeId: string;
+      recipeName: string;
+    }
+    
+    const schedule: ScheduleItem[] = [];
     let currentTime = 0;
     
     recipes.forEach(recipe => {
