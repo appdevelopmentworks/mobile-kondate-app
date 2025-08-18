@@ -53,7 +53,7 @@ export default function NutritionStep() {
     if (formData.nutritionBalance && formData.nutritionBalance !== nutritionBalance) {
       setNutritionBalance(formData.nutritionBalance);
     }
-  }, [formData.nutritionBalance]);
+  }, [formData.nutritionBalance, nutritionBalance]);
 
   const handleSelect = (value: string) => {
     setNutritionBalance(value as any);

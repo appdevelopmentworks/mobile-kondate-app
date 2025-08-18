@@ -73,7 +73,7 @@ export default function BudgetStep() {
     if (formData.difficulty && formData.difficulty !== difficulty) {
       setDifficulty(formData.difficulty);
     }
-  }, [formData.dishCount, formData.budget, formData.difficulty]);
+  }, [formData.dishCount, formData.budget, formData.difficulty, dishCount, budget, difficulty]);
 
   const handleDishCountChange = (value: number) => {
     setDishCount(value);

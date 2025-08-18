@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMealStore } from '../../lib/store';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -54,9 +54,9 @@ export default function ResultPage() {
   useEffect(() => {
     // フォームデータに基づいて献立を生成
     generateMealSuggestion();
-  }, []);
+  }, [generateMealSuggestion]);
 
-  const generateMealSuggestion = () => {
+  const generateMealSuggestion = useCallback(() => {
     const dishCount = formData.dishCount || 3;
     const patterns = mealPatterns[dishCount as keyof typeof mealPatterns] || mealPatterns[3];
     
@@ -92,7 +92,7 @@ export default function ResultPage() {
 
     // 履歴に追加
     addToHistory(suggestion);
-  };
+  }, [formData, addToHistory]);
 
   const getMealTitle = () => {
     const mealTypeMap = {
