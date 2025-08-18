@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { sampleRecipes } from '../../lib/sample-data';
 import type { MealSuggestion, Recipe } from '../../lib/types';
+import { generateMeals, checkMealGenerationStatus } from '../../lib/meal-generation';
 
 // 献立のバリエーションパターンを定義
 const mealPatterns = {
@@ -135,7 +136,127 @@ export default function ResultPage() {
     return schedule;
   }, []);
 
-  const generateMealSuggestion = useCallback(() => {
+  const generateMealSuggestion = useCallback(async () => {
+    console.log('🚀 「献立完成！」画面で献立生成開始...');
+    console.log('📋 フォームデータ:', formData);
+    
+    try {
+      // Groq API状態をチェック
+      const apiStatus = checkMealGenerationStatus();
+      console.log('🔍 Groq API状態:', apiStatus);
+      
+      // フォームデータからGroq APIリクエストを構築
+      const mealRequest = {
+        ingredients: formData.preferredIngredients || ['野菜', '肉類', '調味料'],
+        servings: formData.servings || 2,
+        cookingTime: formData.cookingTime === 'unlimited' ? 60 : Number(formData.cookingTime) || 45,
+        mealType: formData.mealType === 'breakfast' ? 'breakfast' as const :
+                 formData.mealType === 'lunch' ? 'lunch' as const : 'dinner' as const,
+        dietaryRestrictions: formData.avoidIngredients || [],
+        preferences: [
+          formData.nutritionBalance === 'protein' ? 'タンパク質を多めに' :
+          formData.nutritionBalance === 'vegetable' ? '野菜をたっぷり' :
+          formData.nutritionBalance === 'light' ? 'あっさりと' : 'バランスよく'
+        ],
+        difficulty: formData.difficulty || 'medium' as const,
+        cuisine: '和洋中問わず'
+      };
+      
+      console.log('📡 Groq APIリクエスト詳細:', mealRequest);
+      
+      // **実際にGroq APIを呼び出し**
+      const apiResponse = await generateMeals(mealRequest);
+      
+      console.log('📊 Groq APIレスポンス:', {
+        success: apiResponse.success,
+        source: apiResponse.source,
+        mealsCount: apiResponse.meals?.length || 0,
+        error: apiResponse.error
+      });
+      
+      if (apiResponse.success && apiResponse.meals && apiResponse.meals.length > 0) {
+        // ✅ Groq API成功時の処理
+        console.log('✅ Groq API献立生成成功!');
+        
+        // Groq APIの結果をRecipe形式に変換
+        const apiRecipes: Recipe[] = apiResponse.meals.map((meal, index) => ({
+          id: `groq-meal-${Date.now()}-${index}`,
+          name: meal.name,
+          description: `${meal.category} - ${meal.difficulty}レベル`,
+          ingredients: meal.ingredients.map((ing, i) => ({
+            name: ing,
+            amount: '適量',
+            unit: '',
+            category: 'other' as const
+          })),
+          steps: meal.instructions.map((instruction, i) => ({
+            order: i + 1,
+            description: instruction,
+            duration: Math.ceil(meal.cookingTime / meal.instructions.length),
+            temperature: undefined,
+            tips: meal.tips && meal.tips[i] ? [meal.tips[i]] : []
+          })),
+          cookingTime: meal.cookingTime,
+          difficulty: meal.difficulty as 'easy' | 'medium' | 'hard',
+          servings: meal.servings,
+          nutrition: {
+            calories: Math.round(300 + Math.random() * 200),
+            protein: Math.round(15 + Math.random() * 15),
+            carbs: Math.round(30 + Math.random() * 20),
+            fat: Math.round(10 + Math.random() * 15)
+          },
+          tags: [meal.category, meal.difficulty, apiResponse.source],
+          imageUrl: '',
+          createdAt: new Date(),
+          category: meal.category as 'main' | 'side' | 'soup' | 'rice' | 'dessert'
+        }));
+        
+        // 総カロリーと調理時間を計算
+        const totalCalories = apiRecipes.reduce((sum, recipe) => sum + recipe.nutrition.calories, 0);
+        const totalTime = Math.max(...apiRecipes.map(recipe => recipe.cookingTime));
+        
+        // 買い物リストを生成
+        const shoppingList = generateShoppingList(apiRecipes);
+        
+        // 調理スケジュールを生成
+        const cookingSchedule = generateCookingSchedule(apiRecipes);
+        
+        const suggestion: MealSuggestion = {
+          id: `groq-meal-${Date.now()}`,
+          title: `🤖 ${getMealTitle()}`,
+          description: `${getMealDescription()} (AI生成)`,
+          recipes: apiRecipes,
+          totalTime,
+          totalCalories,
+          shoppingList,
+          cookingSchedule,
+          createdAt: new Date(),
+        };
+        
+        setMealSuggestion(suggestion);
+        addToHistory(suggestion);
+        console.log('🎉 Groq AI献立設定完了!');
+        
+      } else {
+        // ⚠️ Groq API失敗時はモックデータにフォールバック
+        console.warn('⚠️ Groq API失敗、モックデータにフォールバック:', apiResponse.error);
+        generateMockMealSuggestion();
+      }
+      
+    } catch (error) {
+      // ❌ エラー時はモックデータにフォールバック
+      console.error('❌ 献立生成エラー:', error);
+      generateMockMealSuggestion();
+    } finally {
+      setLoading(false);
+      setIsRegenerating(false);
+    }
+  }, [formData, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory, setLoading]);
+  
+  // モックデータでの献立生成（フォールバック用）
+  const generateMockMealSuggestion = useCallback(() => {
+    console.log('🎭 モックデータで献立生成（フォールバック）');
+    
     const dishCount = formData.dishCount || 3;
     const patterns = mealPatterns[dishCount as keyof typeof mealPatterns] || mealPatterns[3];
     
@@ -154,9 +275,9 @@ export default function ResultPage() {
     const cookingSchedule = generateCookingSchedule(selectedRecipes);
 
     const suggestion: MealSuggestion = {
-      id: `meal-${Date.now()}`,
-      title: getMealTitle(),
-      description: getMealDescription(),
+      id: `mock-meal-${Date.now()}`,
+      title: `🎭 ${getMealTitle()}`,
+      description: `${getMealDescription()} (サンプル献立)`,
       recipes: selectedRecipes,
       totalTime,
       totalCalories,
@@ -166,12 +287,8 @@ export default function ResultPage() {
     };
 
     setMealSuggestion(suggestion);
-    setLoading(false);
-    setIsRegenerating(false);
-
-    // 履歴に追加
     addToHistory(suggestion);
-  }, [formData.dishCount, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory, setLoading]);
+  }, [formData.dishCount, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory]);
 
   useEffect(() => {
     // フォームデータに基づいて献立を生成

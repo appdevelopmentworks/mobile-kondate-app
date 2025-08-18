@@ -181,7 +181,7 @@ export default function QuickMealPage() {
     return {
       id: `groq-quick-meal-${Date.now()}`,
       title: `${stylePrefix}${mealType}セット`,
-      description: `${preferences.servings}人分・約${totalTime}分で作れるGroq AIが推奨する献立です`,
+      description: `${preferences.servings}人分・約${totalTime}分で作れるAIが推奨する献立です`,
       recipes,
       totalTime,
       totalCalories,
@@ -462,7 +462,7 @@ export default function QuickMealPage() {
                 {apiStatus.status === 'ready' ? (
                   <>
                     <span className="text-green-600">🤖</span>
-                    <span className="text-sm font-medium text-green-800">Groq AI利用可能</span>
+                    <span className="text-sm font-medium text-green-800">AI利用可能</span>
                   </>
                 ) : (
                   <>
@@ -617,12 +617,12 @@ export default function QuickMealPage() {
               {isGenerating ? (
                 <div className="flex items-center justify-center">
                   <Loader2 className="w-6 h-6 mr-2 animate-spin" />
-                  {apiStatus?.status === 'ready' ? 'Groq AIで献立生成中...' : '献立を生成中...'}
+                  {apiStatus?.status === 'ready' ? 'AIで献立生成中...' : '献立を生成中...'}
                 </div>
               ) : (
                 <div className="flex items-center justify-center">
                   <Sparkles className="w-6 h-6 mr-2" />
-                  {apiStatus?.status === 'ready' ? 'Groq AIでおまかせ献立を作成' : 'おまかせ献立を作成'}
+                  {apiStatus?.status === 'ready' ? 'AIでおまかせ献立を作成' : 'おまかせ献立を作成'}
                 </div>
               )}
             </button>
