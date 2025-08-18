@@ -1,0 +1,375 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🌸 可愛いグローバルスタイル 🌸 */
+@layer base {
+  :root {
+    --foreground-rgb: 75, 85, 99;
+    --background-start-rgb: 253, 242, 248;
+    --background-end-rgb: 251, 207, 232;
+    
+    /* スマホ用のCSS変数 */
+    --safe-area-inset-top: env(safe-area-inset-top);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom);
+    --safe-area-inset-left: env(safe-area-inset-left);
+    --safe-area-inset-right: env(safe-area-inset-right);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --foreground-rgb: 255, 255, 255;
+      --background-start-rgb: 0, 0, 0;
+      --background-end-rgb: 20, 20, 20;
+    }
+  }
+
+  * {
+    -webkit-tap-highlight-color: rgba(236, 72, 153, 0.2);
+  }
+
+  html {
+    /* スマホでのオーバースクロール対策 */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body {
+    color: rgb(var(--foreground-rgb));
+    background: linear-gradient(
+      135deg,
+      rgb(var(--background-start-rgb)) 0%,
+      rgb(var(--background-end-rgb)) 100%
+    );
+    min-height: 100vh;
+    
+    /* PWA用の設定 */
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+    
+    /* セーフエリア対応 */
+    padding-top: var(--safe-area-inset-top);
+    padding-bottom: var(--safe-area-inset-bottom);
+    padding-left: var(--safe-area-inset-left);
+    padding-right: var(--safe-area-inset-right);
+  }
+  
+  /* テキスト選択可能にする要素 */
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+@layer utilities {
+  /* 可愛いボタンスタイル */
+  .btn-cute {
+    @apply relative overflow-hidden rounded-cute px-6 py-3 font-medium transition-all duration-300 transform active:scale-95;
+  }
+  
+  .btn-primary-cute {
+    @apply bg-gradient-to-r from-primary-400 to-primary-500 text-white shadow-cute hover:shadow-cute-lg;
+  }
+  
+  .btn-lavender-cute {
+    @apply bg-gradient-to-r from-lavender-400 to-lavender-500 text-white shadow-lavender;
+  }
+  
+  .btn-mint-cute {
+    @apply bg-gradient-to-r from-mint-400 to-mint-500 text-white shadow-mint;
+  }
+  
+  /* カードスタイル */
+  .card-cute {
+    @apply bg-white/80 backdrop-blur-sm rounded-extra-cute p-6 shadow-cute border border-white/20;
+  }
+  
+  .card-glass {
+    @apply bg-white/70 backdrop-blur-md rounded-extra-cute p-6 shadow-lg border border-white/30;
+  }
+  
+  /* グラデーション背景 */
+  .gradient-cute-primary {
+    @apply bg-gradient-to-br from-primary-300 via-primary-400 to-primary-500;
+  }
+  
+  .gradient-cute-lavender {
+    @apply bg-gradient-to-br from-lavender-300 via-lavender-400 to-lavender-500;
+  }
+  
+  .gradient-cute-mint {
+    @apply bg-gradient-to-br from-mint-300 via-mint-400 to-mint-500;
+  }
+  
+  /* 可愛いホバー効果 */
+  .hover-cute {
+    @apply transition-all duration-300 hover:scale-105 hover:shadow-cute-lg;
+  }
+  
+  /* プレス効果 */
+  .press-cute {
+    @apply transition-transform active:scale-95;
+  }
+  
+  /* スマホ最適化クラス */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    @apply flex items-center justify-center;
+  }
+  
+  .thumb-zone {
+    @apply fixed bottom-0 left-0 right-0;
+    height: 66vh;
+    pointer-events: none;
+  }
+  
+  .thumb-zone > * {
+    pointer-events: auto;
+  }
+  
+  /* スワイプ可能要素 */
+  .swipeable {
+    touch-action: pan-x;
+  }
+  
+  .swipeable-y {
+    touch-action: pan-y;
+  }
+  
+  /* セーフエリア対応 */
+  .safe-top {
+    padding-top: var(--safe-area-inset-top);
+  }
+  
+  .safe-bottom {
+    padding-bottom: var(--safe-area-inset-bottom);
+  }
+  
+  .safe-left {
+    padding-left: var(--safe-area-inset-left);
+  }
+  
+  .safe-right {
+    padding-right: var(--safe-area-inset-right);
+  }
+  
+  /* ボトムナビゲーション用 */
+  .bottom-nav-height {
+    height: calc(56px + var(--safe-area-inset-bottom));
+  }
+  
+  .bottom-nav-padding {
+    padding-bottom: calc(56px + var(--safe-area-inset-bottom));
+  }
+  
+  /* スクロール可能エリア */
+  .scrollable {
+    @apply overflow-y-auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  
+  .scrollable-x {
+    @apply overflow-x-auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  
+  /* カードのプレス効果 */
+  .press-effect {
+    @apply transition-transform active:scale-95;
+  }
+  
+  /* 大きなボタン（片手操作用） */
+  .btn-large {
+    @apply h-14 px-6 text-base font-medium rounded-xl touch-target press-effect;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-800 hover:bg-gray-300 active:bg-gray-400;
+  }
+  
+  /* フォーム要素 */
+  .input-mobile {
+    @apply h-14 px-4 text-base rounded-xl border border-gray-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none;
+  }
+  
+  /* チップ選択 */
+  .chip {
+    @apply inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-colors press-effect;
+  }
+  
+  .chip-default {
+    @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+  }
+  
+  .chip-selected {
+    @apply bg-primary-500 text-white;
+  }
+  
+  /* スケルトンローディング */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+  
+  /* グラデーション背景 */
+  .gradient-primary {
+    @apply bg-gradient-to-br from-primary-400 to-primary-600;
+  }
+  
+  .gradient-secondary {
+    @apply bg-gradient-to-br from-secondary-400 to-secondary-600;
+  }
+}
+
+/* アニメーション */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ハートビート効果 */
+.heartbeat {
+  animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+/* フロート効果 */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.delay-200 {
+  animation-delay: 0.2s;
+}
+
+.delay-400 {
+  animation-delay: 0.4s;
+}
+
+/* 背景パターン */
+.bg-pattern-hearts {
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 15c-5-5-10-10-5-15 5-5 10 0 5 5 5-5 10 0 5 15z' fill='%23fce7f3' fill-opacity='0.3'/%3E%3C/svg%3E");
+}
+
+/* PWAスタンドアローンモード用 */
+@media (display-mode: standalone) {
+  .standalone-only {
+    display: block;
+  }
+  
+  .browser-only {
+    display: none;
+  }
+}
+
+/* iPhone X以降のノッチ対応 */
+@supports (padding: max(0px)) {
+  .safe-top {
+    padding-top: max(1rem, var(--safe-area-inset-top));
+  }
+  
+  .safe-bottom {
+    padding-bottom: max(1rem, var(--safe-area-inset-bottom));
+  }
+}
+
+/* カスタムスクロールバー（デスクトップ用） */
+@media (min-width: 768px) {
+  .scrollable::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollable::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+  
+  .scrollable::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 rounded-full hover:bg-gray-500;
+  }
+}
+
+/* リップル効果 */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.ripple:active::before {
+  width: 300px;
+  height: 300px;
+}
