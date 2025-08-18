@@ -88,3 +88,34 @@ export interface UserHistory {
   favorites: string[];
   preferences: Partial<MealPreference>;
 }
+
+// 食材認識関連の型定義
+export interface IngredientRecognitionResult {
+  success: boolean;
+  ingredients: RecognizedIngredient[];
+  confidence: number;
+  processingTime: number;
+  error?: string;
+}
+
+export interface RecognizedIngredient {
+  name: string;
+  confidence: number;
+  category?: 'vegetable' | 'meat' | 'fish' | 'grain' | 'dairy' | 'seasoning' | 'other';
+  quantity?: string;
+  freshness?: 'fresh' | 'good' | 'need_to_use_soon' | 'overripe';
+}
+
+export interface CameraConfig {
+  width: number;
+  height: number;
+  facingMode: 'user' | 'environment';
+  quality: number;
+}
+
+export interface ImageProcessingOptions {
+  maxWidth: number;
+  maxHeight: number;
+  quality: number;
+  format: 'jpeg' | 'png' | 'webp';
+}

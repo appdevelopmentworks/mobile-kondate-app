@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMealStore } from '../../lib/store';
 import { motion } from 'framer-motion';
-import { Plus, X, ChevronRight, Home } from 'lucide-react';
+import { Plus, X, ChevronRight, Home, Camera } from 'lucide-react';
 import { commonIngredients } from '../../lib/sample-data';
+import CameraIngredientRecognition from '../camera/CameraIngredientRecognition';
 
 export default function IngredientsStep() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function IngredientsStep() {
     formData.ingredients || []
   );
   const [customIngredient, setCustomIngredient] = useState('');
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   const toggleIngredient = (ingredient: string) => {
     setSelectedIngredients((prev) =>
@@ -28,6 +30,17 @@ export default function IngredientsStep() {
       setSelectedIngredients([...selectedIngredients, customIngredient]);
       setCustomIngredient('');
     }
+  };
+
+  const handleCameraRecognition = (recognizedIngredients: string[]) => {
+    // 重複を避けながら認識された食材を追加
+    const newIngredients = recognizedIngredients.filter(
+      (ingredient) => !selectedIngredients.includes(ingredient)
+    );
+    if (newIngredients.length > 0) {
+      setSelectedIngredients((prev) => [...prev, ...newIngredients]);
+    }
+    setIsCameraOpen(false);
   };
 
   const handleNext = () => {
@@ -61,8 +74,8 @@ export default function IngredientsStep() {
             </p>
           </div>
 
-          {/* カスタム入力 */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4">
+          {/* カスタム入力とカメラボタン */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4 space-y-3">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -80,6 +93,15 @@ export default function IngredientsStep() {
                 <Plus className="w-5 h-5" />
               </button>
             </div>
+            
+            {/* カメラで食材認識ボタン */}
+            <button
+              onClick={() => setIsCameraOpen(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-purple-700 active:scale-95 transition-all duration-200 shadow-lg"
+            >
+              <Camera className="w-5 h-5" />
+              <span>カメラで食材認識</span>
+            </button>
           </div>
 
           {/* 選択された食材 */}
@@ -154,6 +176,13 @@ export default function IngredientsStep() {
           <span>ホームに戻る</span>
         </button>
       </div>
+      
+      {/* カメラ食材認識モーダル */}
+      <CameraIngredientRecognition
+        isOpen={isCameraOpen}
+        onIngredientsRecognized={handleCameraRecognition}
+        onClose={() => setIsCameraOpen(false)}
+      />
     </div>
   );
 }

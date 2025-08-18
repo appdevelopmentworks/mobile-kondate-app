@@ -31,6 +31,10 @@ export default function HomePage() {
     router.push('/meal-form/quick');
   };
 
+  const handleCameraRecognition = () => {
+    router.push('/camera-recognition');
+  };
+
   const handleViewHistory = (mealId: string) => {
     // 履歴の詳細表示機能は後で実装
     console.log('履歴表示:', mealId);
@@ -99,23 +103,24 @@ export default function HomePage() {
             </div>
           </button>
 
-          {/* カメラで食材認識（準備中） */}
-          <div className="w-full bg-white/60 backdrop-blur-sm text-gray-500 p-6 rounded-2xl shadow-lg">
+          {/* カメラで食材認識 */}
+          <button
+            onClick={handleCameraRecognition}
+            className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
+          >
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <div className="flex items-center gap-3 mb-2">
                   <Camera className="w-6 h-6" />
                   <h3 className="text-xl font-bold">カメラで食材認識</h3>
                 </div>
-                <p className="text-gray-600 text-sm">
-                  写真から食材を認識して献立提案（準備中）
+                <p className="text-white/90 text-sm">
+                  写真から食材を認識して献立提案
                 </p>
               </div>
-              <div className="text-gray-400">
-                <span className="text-sm">準備中</span>
-              </div>
+              <ArrowRight className="w-6 h-6 text-white/80" />
             </div>
-          </div>
+          </button>
         </motion.div>
 
         {/* 最近の献立 */}
