@@ -28,20 +28,13 @@ const nextConfig = {
     },
   }),
   
-  // Base path設定（必要に応じて）
-  // basePath: '/mobile-kondate-app',
-  
-  // Asset prefix設定（CDN使用時）
-  // assetPrefix: 'https://your-cdn-domain.com',
-  
   // 静的ファイルの圧縮
   compress: true,
   
-  // 実験的機能
-  experimental: {
-    // アプリディレクトリの使用
-    appDir: true,
-  }
+  // Next.js 14では appDir は不要（デフォルトで有効）
+  // experimental: {
+  //   appDir: true, // この行を削除
+  // }
 };
 
 module.exports = withPWA(nextConfig);
