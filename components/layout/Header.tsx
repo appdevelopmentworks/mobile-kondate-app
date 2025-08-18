@@ -8,13 +8,15 @@ interface HeaderProps {
   showBack?: boolean;
   showMenu?: boolean;
   onMenuClick?: () => void;
+  onBack?: () => void;
 }
 
 export default function Header({ 
   title = 'こんだて', 
   showBack = false, 
   showMenu = false,
-  onMenuClick 
+  onMenuClick,
+  onBack
 }: HeaderProps) {
   const router = useRouter();
 
@@ -24,7 +26,7 @@ export default function Header({
         <div className="flex items-center gap-2">
           {showBack && (
             <button
-              onClick={() => router.back()}
+              onClick={onBack || (() => router.back())}
               className="touch-target p-2 -ml-2 rounded-lg active:bg-white/20 transition-colors"
               aria-label="戻る"
             >

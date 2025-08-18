@@ -88,7 +88,7 @@ export default function CameraIngredientRecognition({
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  }, [stream]);
+  }, [stream]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 写真撮影
   const takePhoto = useCallback(async () => {

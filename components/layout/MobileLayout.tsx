@@ -10,6 +10,7 @@ interface MobileLayoutProps {
   showMenu?: boolean;
   showBottomNav?: boolean;
   onMenuClick?: () => void;
+  onBack?: () => void;
 }
 
 export default function MobileLayout({
@@ -19,6 +20,7 @@ export default function MobileLayout({
   showMenu = false,
   showBottomNav = true,
   onMenuClick,
+  onBack,
 }: MobileLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col">
@@ -27,6 +29,7 @@ export default function MobileLayout({
         showBack={showBack} 
         showMenu={showMenu}
         onMenuClick={onMenuClick}
+        onBack={onBack}
       />
       
       <main className={`flex-1 ${showBottomNav ? 'pb-16' : ''}`}>

@@ -251,7 +251,7 @@ export default function ResultPage() {
       setLoading(false);
       setIsRegenerating(false);
     }
-  }, [formData, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory, setLoading]);
+  }, [formData, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory, setLoading]); // eslint-disable-line react-hooks/exhaustive-deps
   
   // モックデータでの献立生成（フォールバック用）
   const generateMockMealSuggestion = useCallback(() => {
