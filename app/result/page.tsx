@@ -158,7 +158,7 @@ export default function ResultPage() {
           formData.nutritionBalance === 'vegetable' ? '野菜をたっぷり' :
           formData.nutritionBalance === 'light' ? 'あっさりと' : 'バランスよく'
         ],
-        difficulty: formData.difficulty || 'medium' as const,
+        difficulty: 'medium' as const,
         cuisine: '和洋中問わず'
       };
       
@@ -186,15 +186,14 @@ export default function ResultPage() {
           ingredients: meal.ingredients.map((ing, i) => ({
             name: ing,
             amount: '適量',
-            unit: '',
-            category: 'other' as const
+            unit: ''
           })),
           steps: meal.instructions.map((instruction, i) => ({
             order: i + 1,
             description: instruction,
             duration: Math.ceil(meal.cookingTime / meal.instructions.length),
             temperature: undefined,
-            tips: meal.tips && meal.tips[i] ? [meal.tips[i]] : []
+            tips: meal.tips && meal.tips[i] ? meal.tips[i] : undefined
           })),
           cookingTime: meal.cookingTime,
           difficulty: meal.difficulty as 'easy' | 'medium' | 'hard',
@@ -202,13 +201,25 @@ export default function ResultPage() {
           nutrition: {
             calories: Math.round(300 + Math.random() * 200),
             protein: Math.round(15 + Math.random() * 15),
-            carbs: Math.round(30 + Math.random() * 20),
-            fat: Math.round(10 + Math.random() * 15)
+            carbohydrates: Math.round(30 + Math.random() * 20),
+            fat: Math.round(10 + Math.random() * 15),
+            fiber: Math.round(2 + Math.random() * 3),
+            salt: Math.round(1 + Math.random() * 2)
           },
           tags: [meal.category, meal.difficulty, apiResponse.source],
           imageUrl: '',
           createdAt: new Date(),
-          category: meal.category as 'main' | 'side' | 'soup' | 'rice' | 'dessert'
+          category: (() => {
+            const cat = meal.category;
+            switch (cat) {
+              case 'main': return 'main';
+              case 'side': return 'side';
+              case 'soup': return 'soup';
+              case 'rice': return 'main'; // ご飯ものは主菜として扱う
+              case 'dessert': return 'other'; // デザートはその他として扱う
+              default: return 'other';
+            }
+          })()
         }));
         
         // 総カロリーと調理時間を計算
