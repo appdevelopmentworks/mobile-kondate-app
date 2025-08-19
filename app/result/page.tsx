@@ -147,7 +147,7 @@ export default function ResultPage() {
       
       // フォームデータからGroq APIリクエストを構築
       const mealRequest = {
-        ingredients: formData.preferredIngredients || ['野菜', '肉類', '調味料'],
+        ingredients: formData.ingredients || ['野菜', '肉類', '調味料'],
         servings: formData.servings || 2,
         cookingTime: formData.cookingTime === 'unlimited' ? 60 : Number(formData.cookingTime) || 45,
         mealType: formData.mealType === 'breakfast' ? 'breakfast' as const :
