@@ -59,20 +59,6 @@
     }
   ],
   "categories": ["food", "lifestyle", "utilities"],
-  "screenshots": [
-    {
-      "src": "/screenshot-1.jpg",
-      "sizes": "1080x1920",
-      "type": "image/jpeg",
-      "label": "ホーム画面"
-    },
-    {
-      "src": "/screenshot-2.jpg",
-      "sizes": "1080x1920",
-      "type": "image/jpeg",
-      "label": "献立作成"
-    }
-  ],
   "shortcuts": [
     {
       "name": "献立作成",
