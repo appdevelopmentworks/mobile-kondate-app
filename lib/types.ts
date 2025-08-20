@@ -39,7 +39,7 @@ export interface NutritionInfo {
 export interface MealPreference {
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'bento' | 'party';
   servings: number;
-  cookingTime: '30' | '60' | 'unlimited';
+  cookingTime: '30' | '45' | '60' | 'unlimited' | string;
   ingredients: string[];
   avoidIngredients: string[];
   allergies: string[];
@@ -57,6 +57,8 @@ export interface MealSuggestion {
   recipes: Recipe[];
   totalTime: number;
   totalCalories: number;
+  servings: number;
+  tags: string[];
   shoppingList: ShoppingItem[];
   cookingSchedule: CookingScheduleItem[];
   createdAt: Date;
@@ -95,6 +97,7 @@ export interface IngredientRecognitionResult {
   ingredients: RecognizedIngredient[];
   confidence: number;
   processingTime: number;
+  provider?: string;
   error?: string;
 }
 

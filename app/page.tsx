@@ -32,7 +32,8 @@ export default function HomePage() {
   };
 
   const handleCameraRecognition = () => {
-    router.push('/camera-recognition');
+    console.log('🎯 カメラ認識ボタンクリック - /cameraに遷移');
+    router.push('/camera');
   };
 
   const handleViewHistory = (mealId: string) => {
@@ -65,19 +66,22 @@ export default function HomePage() {
           transition={{ delay: 0.1 }}
           className="space-y-4"
         >
-          {/* 条件から作る */}
+          {/* カメラで食材認識 */}
           <button
-            onClick={handleStartMealForm}
-            className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
+            onClick={() => {
+              console.log('🎯 カメラ認識ボタンクリック - /camera-recognitionに遷移します');
+              router.push('/camera-recognition');
+            }}
+            className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
           >
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <div className="flex items-center gap-3 mb-2">
-                  <ChefHat className="w-6 h-6" />
-                  <h3 className="text-xl font-bold">条件から作る</h3>
+                  <Camera className="w-6 h-6" />
+                  <h3 className="text-xl font-bold">カメラで食材認識</h3>
                 </div>
                 <p className="text-white/90 text-sm">
-                  食材・時間・人数を指定して献立を作成
+                  写真から食材を認識して献立提案
                 </p>
               </div>
               <ArrowRight className="w-6 h-6 text-white/80" />
@@ -103,19 +107,19 @@ export default function HomePage() {
             </div>
           </button>
 
-          {/* カメラで食材認識 */}
+          {/* 条件から作る */}
           <button
-            onClick={handleCameraRecognition}
-            className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
+            onClick={handleStartMealForm}
+            className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
           >
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <div className="flex items-center gap-3 mb-2">
-                  <Camera className="w-6 h-6" />
-                  <h3 className="text-xl font-bold">カメラで食材認識</h3>
+                  <ChefHat className="w-6 h-6" />
+                  <h3 className="text-xl font-bold">条件から作る</h3>
                 </div>
                 <p className="text-white/90 text-sm">
-                  写真から食材を認識して献立提案
+                  食材・時間・人数を指定して献立を作成
                 </p>
               </div>
               <ArrowRight className="w-6 h-6 text-white/80" />

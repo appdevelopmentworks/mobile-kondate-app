@@ -4,7 +4,9 @@ import type { MealPreference, MealSuggestion } from './types';
 interface MealFormState {
   // State
   currentStep: number;
-  formData: Partial<MealPreference>;
+  formData: Partial<MealPreference> & {
+    generatedSuggestion?: MealSuggestion; // AI生成済み献立データ
+  };
   lastResult: MealSuggestion | null;
   history: MealSuggestion[];
   favorites: string[];
@@ -16,12 +18,17 @@ interface MealFormState {
   prevStep: () => void;
   updateFormData: (data: Partial<MealPreference>) => void;
   setResult: (result: MealSuggestion) => void;
+  setGeneratedSuggestion: (suggestion: MealSuggestion) => void; // 新規追加
+  clearGeneratedSuggestion: () => void; // 新規追加
   addToHistory: (result: MealSuggestion) => void;
+  addMeal: (meal: MealSuggestion) => void; // 新規追加
   addToFavorites: (id: string) => void;
   removeFromFavorites: (id: string) => void;
   toggleFavorite: (id: string) => void; // 新規追加
   setLoading: (loading: boolean) => void;
   resetForm: () => void;
+  resetStore: () => void; // 完全リセット
+  forceClearCache: () => void; // キャッシュ強制クリア
 }
 
 const initialFormData: Partial<MealPreference> = {
@@ -76,10 +83,33 @@ export const useMealStore = create<MealFormState>((set, get) => ({
     set({ lastResult: result });
   },
   
+  setGeneratedSuggestion: (suggestion: MealSuggestion) => {
+    console.log('ストア: AI生成献立設定', suggestion.title);
+    set((state) => ({
+      formData: { ...state.formData, generatedSuggestion: suggestion }
+    }));
+  },
+  
+  clearGeneratedSuggestion: () => {
+    console.log('ストア: AI生成献立クリア');
+    set((state) => {
+      const { generatedSuggestion, ...restFormData } = state.formData;
+      return { formData: restFormData };
+    });
+  },
+  
   addToHistory: (result: MealSuggestion) => {
     console.log('ストア: 履歴追加', result.title);
     set((state) => ({
       history: [result, ...state.history.slice(0, 9)] // Keep last 10
+    }));
+  },
+
+  addMeal: (meal: MealSuggestion) => {
+    console.log('ストア: 献立追加', meal.title);
+    set((state) => ({
+      history: [meal, ...state.history.slice(0, 9)], // 履歴に追加
+      lastResult: meal, // 最新結果として設定
     }));
   },
   
@@ -123,5 +153,44 @@ export const useMealStore = create<MealFormState>((set, get) => ({
       formData: initialFormData,
       isLoading: false,
     });
+  },
+  
+  resetStore: () => {
+    console.log('🗑️ ストア: 完全リセット実行');
+    set({
+      currentStep: 1,
+      formData: initialFormData,
+      lastResult: null,
+      history: [],
+      favorites: [],
+      isLoading: false,
+    });
+  },
+  
+  forceClearCache: () => {
+    console.log('💥 ストア: キャッシュ強制クリア実行');
+    set({
+      currentStep: 1,
+      formData: initialFormData,
+      lastResult: null,
+      history: [],
+      favorites: [],
+      isLoading: false,
+    });
+    
+    // ブラウザストレージもクリア
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.clear();
+        localStorage.clear();
+        // IndexedDBもクリア（あれば）
+        if ('indexedDB' in window) {
+          indexedDB.deleteDatabase('meal-app-cache');
+        }
+        console.log('✅ ブラウザストレージも強制クリアしました');
+      } catch (error) {
+        console.warn('⚠️ ブラウザストレージクリア中にエラー:', error);
+      }
+    }
   },
 }));

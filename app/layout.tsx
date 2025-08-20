@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import ClientWrapper from '@/components/layout/ClientWrapper';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://mobile-kondate-app.netlify.app'),
   title: 'こんだて - スマホで簡単献立作成',
   description: '和食を中心とした献立を簡単に作成できるスマホアプリ',
   manifest: '/manifest.json',
@@ -83,7 +85,9 @@ export default function RootLayout({
         <meta name="msapplication-TileImage" content="/icon-144x144.png" />
       </head>
       <body className="min-h-screen pwa-standalone">
-        {children}
+        <ClientWrapper>
+          {children}
+        </ClientWrapper>
       </body>
     </html>
   );

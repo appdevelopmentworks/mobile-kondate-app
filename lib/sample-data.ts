@@ -177,6 +177,8 @@ export const sampleMealSuggestions: MealSuggestion[] = [
     ],
     totalTime: 40,
     totalCalories: 630,
+    servings: 4,
+    tags: ['和食', '定番', 'バランス', '家庭料理'],
     shoppingList: [
       { ingredient: 'じゃがいも', amount: '4個' },
       { ingredient: '牛肉薄切り', amount: '200g' },

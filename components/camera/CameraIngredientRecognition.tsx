@@ -32,7 +32,7 @@ import {
 } from '../../lib/camera/ingredient-recognition';
 
 interface CameraIngredientRecognitionProps {
-  onIngredientsRecognized: (ingredients: string[]) => void;
+  onIngredientsRecognized: (ingredientsOrImageData: string[] | string) => void;
   onClose: () => void;
   isOpen: boolean;
 }
@@ -149,28 +149,17 @@ export default function CameraIngredientRecognition({
     try {
       setRecognitionResult(null);
       
-      // 食材認識を実行（Groq API → HuggingFace → Claude API の順にフォールバック）
-      const result = await recognizeIngredients(base64);
+      // 画像データを直接親コンポーネントに送信
+      onIngredientsRecognized(base64);
+      handleClose();
       
-      if (result.success) {
-        // 結果を処理・最適化
-        const processedIngredients = processRecognizedIngredients(result.ingredients);
-        const normalizedIngredients = normalizeIngredientNames(processedIngredients);
-        
-        setRecognitionResult({
-          ...result,
-          ingredients: normalizedIngredients,
-        });
-      } else {
-        setError(result.error || '食材の認識に失敗しました');
-      }
     } catch (err) {
       setError('食材認識処理中にエラーが発生しました');
       console.error('Recognition error:', err);
     }
-  }, []);
+  }, [onIngredientsRecognized]);
 
-  // 認識された食材を確定
+  // 認識された食材を確定（この関数は使われなくなった）
   const confirmIngredients = useCallback(() => {
     if (recognitionResult?.ingredients) {
       const ingredientNames = recognitionResult.ingredients.map(ing => ing.name);
@@ -243,7 +232,14 @@ export default function CameraIngredientRecognition({
                   <div className="w-full h-full flex items-center justify-center text-white">
                     <div className="text-center">
                       <Camera className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p className="text-sm opacity-75">カメラを開始してください</p>
+                      <p className="text-sm opacity-75 mb-4">カメラまたはファイルから食材認識</p>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors mx-auto"
+                      >
+                        <Upload className="w-4 h-4" />
+                        ファイル選択
+                      </button>
                     </div>
                   </div>
                 )}
@@ -273,9 +269,10 @@ export default function CameraIngredientRecognition({
 
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-full transition-colors"
+                    className="bg-gray-600 hover:bg-gray-700 text-white p-3 rounded-full transition-colors flex flex-col items-center gap-1 min-w-16"
                   >
-                    <Upload className="w-6 h-6" />
+                    <Upload className="w-5 h-5" />
+                    <span className="text-xs">ファイル</span>
                   </button>
                 </div>
               </div>

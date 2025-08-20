@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
+  ArrowRight,
   Camera,
   Sparkles,
   Clock,
@@ -12,6 +13,10 @@ import {
   ChevronRight,
   CheckCircle,
   AlertCircle,
+  Settings,
+  Eye,
+  Cpu,
+  RefreshCw,
 } from 'lucide-react';
 import MobileLayout from '../../components/layout/MobileLayout';
 import CameraIngredientRecognition from '../../components/camera/CameraIngredientRecognition';
@@ -20,15 +25,52 @@ import {
   IngredientRecognitionResult,
   RecognizedIngredient,
 } from '../../lib/types';
-import { generateMockRecognitionResult, recognizeIngredients } from '../../lib/camera/ingredient-recognition';
+import { 
+  recognizeIngredients, 
+  checkVisionProviderStatus,
+  generateMockRecognitionResult 
+} from '../../lib/camera/ingredient-recognition';
+import { generateMealSuggestion } from '../../lib/meal-generation';
 
 export default function CameraRecognitionPage() {
   const router = useRouter();
-  const { resetForm, updateFormData } = useMealStore();
+  const { resetForm, updateFormData, setGeneratedSuggestion, addToHistory } = useMealStore();
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [recognizedIngredients, setRecognizedIngredients] = useState<RecognizedIngredient[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [aiProviderStatus, setAiProviderStatus] = useState<{
+    available: boolean;
+    providers: Array<{ name: string; hasApiKey: boolean; accuracy: string }>;
+    recommended?: string;
+  } | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<string | undefined>();
+  const [showProviderSelector, setShowProviderSelector] = useState(false);
+  const [lastRecognitionInfo, setLastRecognitionInfo] = useState<{
+    provider?: string;
+    confidence?: number;
+    processingTime?: number;
+  }>({});
+
+  // AI プロバイダーの状態を確認
+  useEffect(() => {
+    const checkProviders = async () => {
+      try {
+        const status = await checkVisionProviderStatus();
+        setAiProviderStatus(status);
+        console.log('🔍 ビジョンプロバイダー状態:', status);
+        
+        if (status.recommended) {
+          setSelectedProvider(status.recommended);
+          console.log('🎯 推奨プロバイダー:', status.recommended);
+        }
+      } catch (error) {
+        console.error('プロバイダー状態確認エラー:', error);
+      }
+    };
+
+    checkProviders();
+  }, []);
 
   const handleBack = () => {
     router.push('/');
@@ -38,54 +80,205 @@ export default function CameraRecognitionPage() {
     setIsCameraOpen(true);
   };
 
-  const handleIngredientsRecognized = useCallback((ingredients: string[]) => {
-    // 文字列の配列をRecognizedIngredient配列に変換
-    const recognizedItems: RecognizedIngredient[] = ingredients.map((name, index) => ({
-      name,
-      confidence: 0.9 - index * 0.02, // 順序に応じて信頼度を調整
-      category: 'other' as const,
-      quantity: '適量',
-      freshness: 'fresh' as const,
-    }));
+  const handleIngredientsRecognized = useCallback(async (
+    ingredientsOrImageData: string[] | string
+  ) => {
+    setIsProcessing(true);
     
-    // 既存の食材リストに追加（重複除去）
-    setRecognizedIngredients(prevIngredients => {
-      const existingNames = prevIngredients.map(item => item.name.toLowerCase());
-      const newIngredients = recognizedItems.filter(
-        item => !existingNames.includes(item.name.toLowerCase())
-      );
-      
-      // コンソールログのみでアラートなし
-      if (newIngredients.length > 0) {
-        const totalAfterAdd = prevIngredients.length + newIngredients.length;
-        const duplicateCount = recognizedItems.length - newIngredients.length;
+    try {
+      let recognitionResult: IngredientRecognitionResult;
+
+      if (Array.isArray(ingredientsOrImageData)) {
+        // 従来の文字列配列形式（後方互換性）
+        console.log('📝 手動入力モード:', ingredientsOrImageData);
         
-        console.log(`✅ ${newIngredients.length}個の新しい食材を追加しました！`, {
-          added: newIngredients.map(item => item.name),
-          totalCount: totalAfterAdd,
-          duplicateCount
-        });
+        const recognizedItems: RecognizedIngredient[] = ingredientsOrImageData.map((name, index) => ({
+          name,
+          confidence: 0.9 - index * 0.02,
+          category: 'other' as const,
+          quantity: '適量',
+          freshness: 'fresh' as const,
+        }));
+        
+        recognitionResult = {
+          success: true,
+          ingredients: recognizedItems,
+          confidence: 0.85,
+          processingTime: 500,
+          provider: '手動入力',
+        };
       } else {
-        console.log(`ℹ️ 認識した食材はすべて既にリストにあります`, {
-          totalCount: prevIngredients.length
+        // 画像データの場合、AI認識を実行
+        console.log('🔍 AI画像認識開始:', { 
+          provider: selectedProvider || 'auto',
+          imageSize: ingredientsOrImageData.length,
+          providersAvailable: aiProviderStatus?.providers.length || 0
         });
+
+        // プロバイダー名をAPIキー名に変換
+        const providerMap: Record<string, string> = {
+          'OpenAI': 'openaiApiKey',
+          'Anthropic': 'anthropicApiKey',
+          'Gemini': 'geminiApiKey',
+          'Together AI': 'togetherApiKey',
+          'HuggingFace': 'huggingfaceApiKey',
+        };
+
+        const preferredProvider = selectedProvider ? providerMap[selectedProvider] : undefined;
+        recognitionResult = await recognizeIngredients(ingredientsOrImageData, preferredProvider);
+      }
+
+      console.log('✅ 食材認識完了:', {
+        success: recognitionResult.success,
+        ingredientCount: recognitionResult.ingredients.length,
+        provider: recognitionResult.provider,
+        confidence: recognitionResult.confidence,
+        processingTime: recognitionResult.processingTime,
+        ingredients: recognitionResult.ingredients.map(i => `${i.name}(${(i.confidence * 100).toFixed(1)}%)`)
+      });
+
+      // 認識情報を保存
+      setLastRecognitionInfo({
+        provider: recognitionResult.provider,
+        confidence: recognitionResult.confidence,
+        processingTime: recognitionResult.processingTime,
+      });
+
+      // 既存の食材リストに追加（重複除去）
+      setRecognizedIngredients(prevIngredients => {
+        const existingNames = prevIngredients.map(item => item.name.toLowerCase());
+        const newIngredients = recognitionResult.ingredients.filter(
+          item => !existingNames.includes(item.name.toLowerCase())
+        );
+        
+        if (newIngredients.length > 0) {
+          const totalAfterAdd = prevIngredients.length + newIngredients.length;
+          const duplicateCount = recognitionResult.ingredients.length - newIngredients.length;
+          
+          console.log(`📋 ${newIngredients.length}個の新しい食材を追加:`, {
+            added: newIngredients.map(item => item.name),
+            totalCount: totalAfterAdd,
+            duplicateCount
+          });
+        } else {
+          console.log('ℹ️ 認識した食材はすべて既にリストにあります');
+        }
+        
+        return [...prevIngredients, ...newIngredients];
+      });
+      
+      setShowResult(true);
+      setIsCameraOpen(false);
+
+    } catch (error) {
+      console.error('❌ 食材認識エラー:', error);
+      
+      // エラー時はモックデータを使用
+      const fallbackResult = generateMockRecognitionResult();
+      setRecognizedIngredients(fallbackResult.ingredients);
+      setLastRecognitionInfo({
+        provider: fallbackResult.provider,
+        confidence: fallbackResult.confidence,
+        processingTime: fallbackResult.processingTime,
+      });
+      setShowResult(true);
+      setIsCameraOpen(false);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [selectedProvider, aiProviderStatus]);
+
+  const handleGenerateMeal = async () => {
+    if (recognizedIngredients.length === 0) {
+      alert('食材が認識されていません。カメラで食材を撮影してください。');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      console.log('🚀 [カメラ認識] AI献立生成開始:', recognizedIngredients.map(item => item.name));
+      
+      // 認識した食材をストアに設定
+      const ingredientNames = recognizedIngredients.map(item => item.name);
+      
+      // フォームデータをリセットして認識した食材を設定
+      resetForm();
+      updateFormData({
+        ingredients: ingredientNames,
+        servings: 2,
+        cookingTime: '30',
+        mealType: 'dinner',
+        difficulty: 'easy'
+      });
+
+      console.log('✅ [カメラ認識] 認識食材でフォームデータ設定完了:', {
+        ingredients: ingredientNames,
+        count: ingredientNames.length
+      });
+      
+      // AI献立生成を実行
+      const mealPreferences = {
+        ingredients: ingredientNames,
+        servings: 2,
+        cookingTime: '30', // 文字列形式
+        mealType: 'dinner' as const,
+        avoidIngredients: [],
+        allergies: [],
+        nutritionBalance: 'balanced' as const,
+        difficulty: 'easy' as const,
+        dishCount: 3,
+        budget: 'standard' as const,
+      };
+
+      console.log('🍴 [カメラ認識] AI献立生成リクエスト:', mealPreferences);
+      
+      // 実際のAI生成を実行 - より強力なキャッシュバスティング付き
+      const uniqueTimestamp = Date.now();
+      const randomSeed = Math.floor(Math.random() * 10000);
+      const requestId = `camera-${uniqueTimestamp}-${randomSeed}`;
+      
+      const enhancedMealPreferences = {
+        ...mealPreferences,
+        avoidIngredients: [
+          ...mealPreferences.avoidIngredients,
+          `カメラ認識による生成 ${requestId}`,
+          `時刻${uniqueTimestamp}の新しい発想で`,
+          `ランダムシード${randomSeed}`,
+          '前回とは全く違うレシピで',
+          'カメラ認識食材を活用した創作料理',
+          `生成時刻: ${new Date().toISOString()}`,
+          '毎回異なる料理を提案してください'
+        ],
+      };
+      
+      const result = await generateMealSuggestion(enhancedMealPreferences);
+      
+      if (result.success && result.suggestion) {
+        console.log('✅ [カメラ認識] AI献立生成成功！');
+        
+        // カメラ認識由来の献立であることを明示
+        result.suggestion.title = `📷 ${result.suggestion.title}`;
+        result.suggestion.description = `カメラで認識した食材から生成: ${result.suggestion.description}`;
+        
+        // 生成された献立をストアに設定
+        setGeneratedSuggestion(result.suggestion);
+        addToHistory(result.suggestion);
+        
+        // 結果ページに遷移
+        router.push('/result');
+      } else {
+        console.warn('⚠️ [カメラ認識] AI生成失敗、通常フローで処理:', result.error);
+        // 結果ページでAI生成を再試行
+        router.push('/result');
       }
       
-      return [...prevIngredients, ...newIngredients];
-    });
-    
-    setShowResult(true);
-  }, []);
-
-  const handleGenerateMeal = () => {
-    // 認識した食材をフォームデータに設定
-    resetForm();
-    updateFormData({ 
-      ingredients: recognizedIngredients.map(item => item.name)
-    });
-    
-    // 献立生成フォームに遷移
-    router.push('/meal-form');
+    } catch (error) {
+      console.error('❌ [カメラ認識] 献立生成エラー:', error);
+      // エラーが発生しても結果ページで再試行
+      router.push('/result');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleQuickMeal = () => {
@@ -99,564 +292,365 @@ export default function CameraRecognitionPage() {
     router.push('/meal-form/quick');
   };
 
-  const handleEditIngredients = () => {
-    // 認識した食材をフォームデータに設定
-    resetForm();
-    updateFormData({ 
-      ingredients: recognizedIngredients.map(item => item.name)
-    });
-    
-    // 食材編集できるフォームに遷移
-    router.push('/meal-form?edit=ingredients');
-  };
-
-  const handleSaveIngredients = () => {
-    // 認識した食材を保存
-    const savedIngredients = {
-      timestamp: new Date().toISOString(),
-      ingredients: recognizedIngredients,
-      source: 'camera_recognition',
-      id: Date.now().toString()
-    };
-    
-    try {
-      // ローカルストレージが利用可能かチェック
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const existingSaved = JSON.parse(localStorage.getItem('savedIngredientLists') || '[]');
-        existingSaved.push(savedIngredients);
-        
-        // 古いデータを制限（最大20件）
-        if (existingSaved.length > 20) {
-          existingSaved.splice(0, existingSaved.length - 20);
-        }
-        
-        localStorage.setItem('savedIngredientLists', JSON.stringify(existingSaved));
-        
-        // コンソールログのみでアラートなし
-        console.log('🎉 食材リストを保存しました:', savedIngredients);
-      } else {
-        // ローカルストレージが利用できない場合
-        console.warn('ローカルストレージが利用できません');
-      }
-    } catch (error) {
-      console.error('保存エラー:', error);
-    }
-  };
-
   const handleAddIngredients = () => {
-    // 認識した食材をメイン食材リストに追加
-    const ingredientNames = recognizedIngredients.map(item => item.name);
-    
-    // グローバル状態やローカルストレージに保存
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const existingIngredients = JSON.parse(localStorage.getItem('mainIngredientList') || '[]');
-        const combinedIngredients = [...existingIngredients, ...ingredientNames];
-        
-        // 重複除去
-        const uniqueIngredients = Array.from(new Set(combinedIngredients));
-        
-        localStorage.setItem('mainIngredientList', JSON.stringify(uniqueIngredients));
-        
-        // コンソールログのみでアラートなし
-        console.log('✅ 食材をメインリストに追加:', {
-          added: ingredientNames,
-          totalCount: uniqueIngredients.length
-        });
-      } else {
-        console.warn('ローカルストレージが利用できません');
-      }
-    } catch (error) {
-      console.error('食材追加エラー:', error);
+    // 認識した食材を食材選択ページに送る
+    if (recognizedIngredients.length > 0) {
+      const ingredientNames = recognizedIngredients.map(item => item.name);
+      const ingredientsParam = encodeURIComponent(ingredientNames.join(','));
+      router.push(`/ingredients?ingredients=${ingredientsParam}`);
     }
   };
 
-  const handleBackToHome = () => {
-    router.push('/');
-  };
-
-  const handleRetry = () => {
+  const handleClearIngredients = () => {
     setRecognizedIngredients([]);
     setShowResult(false);
-    setIsCameraOpen(true);
+    setLastRecognitionInfo({});
   };
 
-  const handleDemoRecognition = async () => {
-    setIsProcessing(true);
-    
-    try {
-      console.log('🎭 デモ機能: Groq APIで実際の食材認識をテスト中...');
-      
-      // テスト用のサンプル从翴集を作成 (シンプルな食材の絵)
-      const testImageBase64 = await createTestFoodImage();
-      
-      if (testImageBase64) {
-        // 実際にGroq APIで認識を実行
-        const result = await recognizeIngredients(testImageBase64);
-        
-        if (result.success && result.ingredients.length > 0) {
-          setRecognizedIngredients(result.ingredients);
-        } else {
-          // APIが失敗した場合はモックデータを使用
-          console.log('🎭 APIテスト失敗、モックデータを使用');
-          const mockResult = generateMockRecognitionResult();
-          setRecognizedIngredients(mockResult.ingredients);
-        }
-      } else {
-        // テスト画像作成失敗の場合はモックデータを使用
-        console.log('🎭 テスト画像作成失敗、モックデータを使用');
-        const mockResult = generateMockRecognitionResult();
-        setRecognizedIngredients(mockResult.ingredients);
-      }
-      
-      setShowResult(true);
-    } catch (error) {
-      console.error('🎭 デモ認識エラー:', error);
-      // エラー時はモックデータを使用
-      const mockResult = generateMockRecognitionResult();
-      setRecognizedIngredients(mockResult.ingredients);
-      setShowResult(true);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // テスト用の食材画像を作成
-  const createTestFoodImage = async (): Promise<string | null> => {
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
-
-      canvas.width = 400;
-      canvas.height = 300;
-      
-      // 背景を白に
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // シンプルな食材の絵を描画
-      // トマト(赤い丸)
-      ctx.fillStyle = '#ff6b6b';
-      ctx.beginPath();
-      ctx.arc(120, 100, 40, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // タマネギ(黄色い丸)
-      ctx.fillStyle = '#ffd93d';
-      ctx.beginPath();
-      ctx.arc(280, 100, 35, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // ニンジン(オレンジの長方形)
-      ctx.fillStyle = '#ff8c42';
-      ctx.fillRect(80, 180, 80, 20);
-      
-      // キャベツ(緑の丸)
-      ctx.fillStyle = '#51cf66';
-      ctx.beginPath();
-      ctx.arc(280, 200, 30, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // 文字で食材名を追加
-      ctx.fillStyle = '#333333';
-      ctx.font = '16px Arial';
-      ctx.fillText('トマト', 90, 160);
-      ctx.fillText('タマネギ', 250, 160);
-      ctx.fillText('ニンジン', 90, 250);
-      ctx.fillText('キャベツ', 250, 250);
-      
-      // base64で出力
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      const base64 = dataUrl.split(',')[1];
-      
-      console.log('🎨 テスト画像作成成功:', {
-        size: `${canvas.width}x${canvas.height}`,
-        dataSize: `${base64.length} chars`
-      });
-      
-      return base64;
-    } catch (error) {
-      console.error('🎨 テスト画像作成エラー:', error);
-      return null;
-    }
+  const handleProviderChange = (providerName: string) => {
+    setSelectedProvider(providerName);
+    setShowProviderSelector(false);
+    console.log('🔄 プロバイダー変更:', providerName);
   };
 
   return (
-    <MobileLayout 
-      title="カメラで食材認識" 
-      showBack={true} 
-      onBack={handleBack}
-      showBottomNav={false}
-    >
-      <div className="px-4 py-6 space-y-6 pb-safe">
-        {!showResult ? (
-          /* 初期画面 */
+    <MobileLayout title="食材認識" showBack={true} onBack={handleBack}>
+      <div className="px-4 py-6">
+        {/* プロバイダー選択パネル */}
+        {aiProviderStatus && aiProviderStatus.available && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"
           >
-            {/* ヘッダー */}
-            <div className="text-center bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-              <div className="text-6xl mb-4">📸</div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                食材を認識して献立提案
-              </h1>
-              <p className="text-gray-600 text-sm">
-                カメラで撮影した食材から最適な献立を提案します
-              </p>
-            </div>
-
-            {/* 使い方説明 */}
-            <div className="bg-blue-50/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
-              <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                <Sparkles className="w-5 h-5" />
-                使い方
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-blue-900 flex items-center">
+                <Cpu className="w-4 h-4 mr-2" />
+                AI認識プロバイダー
               </h3>
-              <div className="space-y-2 text-sm text-blue-700">
-                <div className="flex items-start gap-2">
-                  <span className="bg-blue-200 text-blue-800 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
-                  <span>食材を明るい場所に置いて撮影してください</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="bg-blue-200 text-blue-800 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
-                  <span>Groq APIのmeta-llamaモデルが食材を認識します</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="bg-blue-200 text-blue-800 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
-                  <span>認識した食材から献立を提案します</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="bg-purple-200 text-purple-800 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">!</span>
-                  <span className="text-purple-700">「Groq APIテスト」で実際のAI認識を体験できます</span>
-                </div>
-              </div>
-            </div>
-
-            {/* アクションボタン */}
-            <div className="space-y-4">
               <button
-                onClick={handleOpenCamera}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
+                onClick={() => setShowProviderSelector(!showProviderSelector)}
+                className="text-blue-600 hover:text-blue-800 transition-colors"
               >
-                <div className="flex items-center justify-center gap-3">
-                  <Camera className="w-6 h-6" />
-                  <span className="text-xl font-bold">カメラで撮影</span>
-                </div>
-                <p className="text-white/90 text-sm mt-2">
-                  食材を撮影して認識開始
-                </p>
-              </button>
-
-              <button
-                onClick={handleDemoRecognition}
-                disabled={isProcessing}
-                className="w-full bg-gradient-to-r from-gray-500 to-gray-600 text-white p-4 rounded-2xl shadow-lg active:scale-95 transition-all duration-200 disabled:opacity-50"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  {isProcessing ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Groq API認識中...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5" />
-                      <span>Groq APIテスト</span>
-                    </>
-                  )}
-                </div>
-                {!isProcessing && (
-                  <p className="text-white/80 text-xs mt-1">
-                    実際のGroq APIで食材認識をテスト
-                  </p>
-                )}
+                <Settings className="w-4 h-4" />
               </button>
             </div>
-
-            {/* 注意事項 */}
-            <div className="bg-yellow-50/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-yellow-800">
-                  <p className="font-medium mb-1">ご注意</p>
-                  <ul className="space-y-1 text-xs">
-                    <li>• 明るい場所で撮影してください</li>
-                    <li>• 食材が明確に写るようにしてください</li>
-                    <li>• 認識精度は食材や環境により変わります</li>
-                  </ul>
-                </div>
-              </div>
+            
+            <div className="text-sm text-blue-700">
+              使用中: <span className="font-medium">{selectedProvider || 'Auto'}</span>
+              {lastRecognitionInfo.confidence && (
+                <span className="ml-2 text-blue-600">
+                  (信頼度: {(lastRecognitionInfo.confidence * 100).toFixed(1)}%)
+                </span>
+              )}
             </div>
+            
+            {showProviderSelector && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mt-3 space-y-2"
+              >
+                {aiProviderStatus.providers.map((provider, index) => (
+                  <button
+                    key={provider.name}
+                    onClick={() => handleProviderChange(provider.name)}
+                    className={`w-full text-left p-2 rounded border transition-colors ${
+                      selectedProvider === provider.name
+                        ? 'bg-blue-100 border-blue-300 text-blue-900'
+                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{provider.name}</span>
+                      <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">
+                        精度: {provider.accuracy}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </motion.div>
+            )}
           </motion.div>
-        ) : (
-          /* 認識結果画面 */
-          <div className="space-y-4">
+        )}
+
+        {/* メインコンテンツ */}
+        <AnimatePresence mode="wait">
+          {!showResult ? (
+            // カメラ起動前の画面
             <motion.div
+              key="camera-intro"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
+              exit={{ opacity: 0, y: -20 }}
+              className="text-center"
             >
-              {/* 結果ヘッダー */}
-              <div className="text-center bg-green-50/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg relative z-10">
-                <CheckCircle className="w-10 h-10 text-green-600 mx-auto mb-2" />
-                <h2 className="text-lg font-bold text-gray-800 mb-1">
-                  {recognizedIngredients.length >= 10 ? 'たくさんの' : recognizedIngredients.length}個の食材を認識しました
-                </h2>
-                
-                {/* 食材数に応じたメッセージ */}
-                {recognizedIngredients.length >= 8 ? (
-                  <div className="mb-2">
-                    <p className="text-green-700 text-sm font-medium">🎉 豊富な食材で素晴らしい献立が作れそうです！</p>
-                    <p className="text-gray-600 text-xs">スクロールして全ての食材を確認してください</p>
-                  </div>
-                ) : recognizedIngredients.length >= 5 ? (
-                  <div className="mb-2">
-                    <p className="text-green-700 text-sm font-medium">🍳 ちょうど良い量の食材ですね！</p>
-                    <p className="text-gray-600 text-xs">以下のオプションから選んでください</p>
-                  </div>
-                ) : (
-                  <div className="mb-2">
-                    <p className="text-green-700 text-sm font-medium">✨ シンプルで美味しい料理が作れます！</p>
-                    <p className="text-gray-600 text-xs">以下のオプションから選んでください</p>
-                  </div>
-                )}
-                
-                <div className="flex items-center justify-center gap-3 text-xs text-gray-500">
-                  <span>🚀 即座に作成</span>
-                  <span>•</span>
-                  <span>✏️ 編集・追加</span>
-                  <span>•</span>
-                  <span>💾 保存</span>
+              <div className="mb-8">
+                <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Camera className="w-12 h-12 text-blue-600" />
                 </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  食材を撮影しよう
+                </h2>
+                <p className="text-gray-600 leading-relaxed">
+                  冷蔵庫の中や食材をカメラで撮影すると、
+                  <br />
+                  AIが自動で食材を認識します
+                </p>
               </div>
 
-              {/* 認識された食材リスト（スクロール対応） */}
-              <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden relative z-10">
-                <div className="p-4 border-b border-gray-100">
-                  <h3 className="font-semibold text-gray-800 flex items-center justify-between">
-                    <span>認識した食材</span>
-                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                      {recognizedIngredients.length}件
-                    </span>
-                  </h3>
+              {/* 使い方の説明 */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-8 text-left">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <Eye className="w-5 h-5 mr-2 text-gray-600" />
+                  使い方のコツ
+                </h3>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-start">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    食材を明るい場所で撮影してください
+                  </li>
+                  <li className="flex items-start">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    複数の食材を一度に撮影できます
+                  </li>
+                  <li className="flex items-start">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    ピントを合わせてブレないように注意
+                  </li>
+                </ul>
+              </div>
+
+              <button
+                onClick={handleOpenCamera}
+                disabled={isProcessing}
+                className="w-full bg-blue-600 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                    AI認識中...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-5 h-5 mr-2" />
+                    カメラを起動
+                  </>
+                )}
+              </button>
+
+              {!aiProviderStatus?.available && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center text-yellow-800 text-sm">
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    AIプロバイダーが設定されていません。サンプル認識を使用します。
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            // 認識結果表示画面
+            <motion.div
+              key="results"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              {/* 認識完了ヘッダー */}
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg">
+                <div className="text-center mb-4">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    {recognizedIngredients.length}個の食材を認識しました
+                  </h2>
+                  <p className="text-orange-600 font-medium flex items-center justify-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    シンプルで美味しい料理が作れます！
+                  </p>
+                  <p className="text-gray-600 text-sm mt-2">以下のオプションから選んでください</p>
                 </div>
                 
-                {/* スクロール可能な食材リスト */}
-                <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                  <div className="p-4 space-y-3">
+                {/* 認識情報 */}
+                {lastRecognitionInfo.provider && (
+                  <div className="text-center text-xs text-gray-500 border-t border-gray-100 pt-3 mt-3">
+                    {lastRecognitionInfo.provider} • {lastRecognitionInfo.processingTime}ms
+                    {lastRecognitionInfo.confidence && (
+                      <> • 信頼度: {(lastRecognitionInfo.confidence * 100).toFixed(1)}%</>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ステップ進行表示 */}
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 mb-6 shadow-lg">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    <CheckCircle className="w-4 h-4" />
+                  </div>
+                  <div className="w-12 h-0.5 bg-gray-300"></div>
+                  <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    2
+                  </div>
+                  <div className="w-12 h-0.5 bg-gray-300"></div>
+                  <div className="w-8 h-8 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center text-sm font-bold">
+                    3
+                  </div>
+                </div>
+                <h3 className="text-center font-semibold text-gray-900 mb-1">
+                  ステップ2: 次のアクションを選択
+                </h3>
+                <p className="text-center text-sm text-gray-600">
+                  📝 {recognizedIngredients.length}個の食材を認識完了！どう活用しますか？
+                </p>
+              </div>
+
+              {/* 認識された食材リスト */}
+              <div className="bg-white rounded-lg border border-gray-200 mb-6">
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="font-semibold text-gray-900 flex items-center justify-between">
+                    認識された食材
+                    <button
+                      onClick={handleClearIngredients}
+                      className="text-sm text-red-600 hover:text-red-800 transition-colors"
+                    >
+                      クリア
+                    </button>
+                  </h3>
+                </div>
+                <div className="p-4">
+                  <div className="space-y-3">
                     {recognizedIngredients.map((ingredient, index) => (
                       <motion.div
-                        key={index}
+                        key={`${ingredient.name}-${index}`}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors touch-manipulation"
+                        transition={{ delay: index * 0.1 }}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="text-xl">
-                            {ingredient.category === 'vegetable' ? '🥬' :
-                             ingredient.category === 'meat' ? '🥩' :
-                             ingredient.category === 'fish' ? '🐟' :
-                             ingredient.category === 'dairy' ? '🥛' :
-                             ingredient.category === 'grain' ? '🌾' : '🍽️'}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-gray-800 truncate">{ingredient.name}</p>
-                            {ingredient.quantity && (
-                              <p className="text-xs text-gray-600">{ingredient.quantity}</p>
-                            )}
+                        <div className="flex items-center">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                            <span className="text-blue-600 font-semibold text-sm">
+                              {ingredient.name.charAt(0)}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {ingredient.name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {ingredient.quantity} • 信頼度: {(ingredient.confidence * 100).toFixed(1)}%
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <span className="text-xs text-gray-500 block">
-                            {Math.round(ingredient.confidence * 100)}%
-                          </span>
-                          {ingredient.freshness === 'fresh' && (
-                            <div className="text-xs text-green-600">新鮮</div>
-                          )}
+                        <div className="text-right">
+                          <div className={`px-2 py-1 rounded text-xs font-medium ${
+                            ingredient.freshness === 'fresh' ? 'bg-green-100 text-green-700' :
+                            ingredient.freshness === 'good' ? 'bg-blue-100 text-blue-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {ingredient.freshness === 'fresh' ? '新鮮' :
+                             ingredient.freshness === 'good' ? '良好' : '要注意'}
+                          </div>
                         </div>
                       </motion.div>
                     ))}
                   </div>
                 </div>
-                
-                {/* スクロールヒント */}
-                {recognizedIngredients.length > 4 && (
-                  <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 border-t border-gray-100">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="flex items-center gap-1 text-blue-600">
-                        <span className="text-sm animate-bounce">↕️</span>
-                        <span className="text-xs font-medium">スクロールして全て確認</span>
-                      </div>
-                      <div className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full">
-                        {recognizedIngredients.length > 8 ? '多数の食材' : `${recognizedIngredients.length}件`}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {/* 推定調理情報（コンパクト版） */}
-              <div className="bg-blue-50/90 backdrop-blur-sm rounded-2xl p-3 shadow-lg relative z-10">
-                <h3 className="font-semibold text-blue-800 mb-2 text-sm">調理情報</h3>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-white/70 rounded-lg p-2">
-                    <Clock className="w-4 h-4 text-blue-600 mx-auto mb-1" />
-                    <p className="text-xs text-blue-800">調理時間</p>
-                    <p className="text-xs font-bold text-blue-900">30-45分</p>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-2">
-                    <Users className="w-4 h-4 text-blue-600 mx-auto mb-1" />
-                    <p className="text-xs text-blue-800">推奨人数</p>
-                    <p className="text-xs font-bold text-blue-900">2-3人分</p>
-                  </div>
-                  <div className="bg-white/70 rounded-lg p-2">
-                    <Sparkles className="w-4 h-4 text-blue-600 mx-auto mb-1" />
-                    <p className="text-xs text-blue-800">料理数</p>
-                    <p className="text-xs font-bold text-blue-900">3-4品</p>
-                  </div>
+              {/* アクションボタン */}
+              <div className="space-y-3">
+                {/* メイングリッド - 2x2レイアウト */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* 条件指定で献立作成 */}
+                  <button
+                    onClick={handleAddIngredients}
+                    disabled={recognizedIngredients.length === 0}
+                    className="bg-green-500 text-white py-6 px-4 rounded-xl font-medium hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-2"
+                  >
+                    <Sparkles className="w-6 h-6" />
+                    <div className="text-center">
+                      <div className="font-semibold">条件指定で</div>
+                      <div className="font-semibold">献立作成</div>
+                      <div className="text-xs opacity-90 mt-1">詳細設定可能</div>
+                    </div>
+                  </button>
+
+                  {/* おまかせで即座に作成 */}
+                  <button
+                    onClick={handleGenerateMeal}
+                    disabled={isProcessing || recognizedIngredients.length === 0}
+                    className="bg-blue-500 text-white py-6 px-4 rounded-xl font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-2 relative"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <RefreshCw className="w-6 h-6 animate-spin" />
+                        <div className="text-center">
+                          <div className="font-semibold">生成中...</div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <ArrowRight className="w-6 h-6" />
+                        <div className="text-center">
+                          <div className="font-semibold">おまかせで</div>
+                          <div className="font-semibold">即座に作成</div>
+                          <div className="text-xs opacity-90 mt-1">ワンクリック</div>
+                        </div>
+                        <div className="absolute top-2 right-2 bg-orange-400 text-white text-xs px-2 py-1 rounded-full">
+                          推奨
+                        </div>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* サブアクション */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* 編集・追加 */}
+                  <button
+                    onClick={handleOpenCamera}
+                    className="bg-orange-500 text-white py-3 px-4 rounded-xl font-medium hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Camera className="w-5 h-5" />
+                    <span>編集・追加</span>
+                  </button>
+
+                  {/* 保存 */}
+                  <button
+                    onClick={handleQuickMeal}
+                    disabled={recognizedIngredients.length === 0}
+                    className="bg-purple-500 text-white py-3 px-4 rounded-xl font-medium hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle className="w-5 h-5" />
+                    <span>保存</span>
+                  </button>
                 </div>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
 
-            {/* 固定ナビゲーションバー */}
-            <div className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-2xl p-4 space-y-3 shadow-lg relative z-20">
-              {/* プログレス表示 */}
-              <div className="flex items-center justify-center mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
-                    <CheckCircle className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="w-8 h-0.5 bg-green-500 rounded-full"></div>
-                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
-                    <span className="text-white text-xs font-bold">2</span>
-                  </div>
-                  <div className="w-8 h-0.5 bg-gray-300"></div>
-                  <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
-                    <span className="text-gray-600 text-xs font-bold">3</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="text-center mb-3">
-                <p className="text-sm font-bold text-gray-800">ステップ 2: 次のアクションを選択</p>
-                <p className="text-xs text-gray-500">🎉 {recognizedIngredients.length}個の食材を認識完了！どう活用しますか？</p>
-                
-                {/* 食材を追加ボタン */}
-                <div className="mt-3 mb-4">
-                  <button
-                    onClick={handleAddIngredients}
-                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-xl font-bold transition-all duration-200 active:scale-95 shadow-lg border-2 border-transparent hover:border-green-300"
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-5 h-5" />
-                      <span>食材を追加 ({recognizedIngredients.length}個)</span>
-                    </div>
-                    <div className="text-xs text-white/80 mt-1">
-                      メイン食材リストに追加して保存
-                    </div>
-                  </button>
-                </div>
-                
-                {/* クイックアクションヒント */}
-                <div className="mt-2 p-2 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <p className="text-xs text-yellow-700">
-                    ⚡ おすすめ: 「おまかせで即座に作成」で素早く献立を取得
-                  </p>
-                </div>
-              </div>
-
-              {/* メイン遷移ボタン */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={handleGenerateMeal}
-                  className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-4 rounded-xl shadow-lg active:scale-95 transition-all duration-200 border-2 border-transparent hover:border-green-300"
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <Sparkles className="w-6 h-6" />
-                    <span className="text-xs font-bold">条件指定で</span>
-                    <span className="text-xs font-bold">献立作成</span>
-                  </div>
-                  <div className="text-xs text-white/80 mt-1">詳細設定可能</div>
-                </button>
-
-                <button
-                  onClick={handleQuickMeal}
-                  className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-4 rounded-xl shadow-lg active:scale-95 transition-all duration-200 border-2 border-transparent hover:border-blue-300 relative overflow-hidden"
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <ChevronRight className="w-6 h-6" />
-                    <span className="text-xs font-bold">おまかせで</span>
-                    <span className="text-xs font-bold">即座に作成</span>
-                  </div>
-                  <div className="text-xs text-white/80 mt-1">ワンクリック</div>
-                  
-                  {/* おすすめバッジ */}
-                  <div className="absolute -top-1 -right-1 bg-yellow-400 text-yellow-900 text-xs px-1.5 py-0.5 rounded-full font-bold">
-                    推奨
-                  </div>
-                </button>
-              </div>
-
-              {/* サブ機能ボタン */}
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={handleEditIngredients}
-                    className="bg-gradient-to-r from-orange-500 to-amber-500 text-white p-2 rounded-lg shadow-lg active:scale-95 transition-all duration-200"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="text-sm">✏️</span>
-                      <span className="text-xs font-medium">編集・追加</span>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={handleSaveIngredients}
-                    className="bg-gradient-to-r from-purple-500 to-violet-500 text-white p-2 rounded-lg shadow-lg active:scale-95 transition-all duration-200"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="text-sm">💾</span>
-                      <span className="text-xs font-medium">保存</span>
-                    </div>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={handleRetry}
-                    className="bg-white/90 backdrop-blur-sm text-gray-700 p-2 rounded-lg shadow-lg active:scale-95 transition-all duration-200 border border-gray-200"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      <Camera className="w-3 h-3" />
-                      <span className="text-xs">再度撮影</span>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={handleBackToHome}
-                    className="bg-gray-100 text-gray-700 p-2 rounded-lg shadow-lg active:scale-95 transition-all duration-200"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      <ArrowLeft className="w-3 h-3" />
-                      <span className="text-xs">ホームに戻る</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* カメラコンポーネント */}
+        <AnimatePresence>
+          {isCameraOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black"
+            >
+              <CameraIngredientRecognition
+                isOpen={isCameraOpen}
+                onClose={() => setIsCameraOpen(false)}
+                onIngredientsRecognized={handleIngredientsRecognized}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-
-      {/* カメラ認識モーダル */}
-      <CameraIngredientRecognition
-        isOpen={isCameraOpen}
-        onIngredientsRecognized={handleIngredientsRecognized}
-        onClose={() => setIsCameraOpen(false)}
-      />
     </MobileLayout>
   );
 }

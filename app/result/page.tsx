@@ -15,8 +15,7 @@ import {
   RefreshCw,
   Star,
   Flame,
-  CheckCircle2,
-  Plus
+  CheckCircle2
 } from 'lucide-react';
 import { sampleRecipes } from '../../lib/sample-data';
 import type { MealSuggestion, Recipe } from '../../lib/types';
@@ -48,7 +47,7 @@ const mealPatterns = {
 
 export default function ResultPage() {
   const router = useRouter();
-  const { formData, addToHistory, toggleFavorite, favorites, setLoading, isLoading } = useMealStore();
+  const { formData, addToHistory, toggleFavorite, favorites, setLoading, isLoading, clearGeneratedSuggestion } = useMealStore();
   const [mealSuggestion, setMealSuggestion] = useState<MealSuggestion | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
@@ -239,6 +238,8 @@ export default function ResultPage() {
           recipes: apiRecipes,
           totalTime,
           totalCalories,
+          servings: formData.servings || 2,
+          tags: ['AI生成', formData.mealType || '夕食'],
           shoppingList,
           cookingSchedule,
           createdAt: new Date(),
@@ -292,6 +293,8 @@ export default function ResultPage() {
       recipes: selectedRecipes,
       totalTime,
       totalCalories,
+      servings: formData.servings || 2,
+      tags: ['サンプル', formData.mealType || '夕食'],
       shoppingList,
       cookingSchedule,
       createdAt: new Date(),
@@ -302,9 +305,18 @@ export default function ResultPage() {
   }, [formData.dishCount, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory]);
 
   useEffect(() => {
-    // フォームデータに基づいて献立を生成
-    generateMealSuggestion();
-  }, [generateMealSuggestion]);
+    // AI生成済みの献立データがある場合はそれを使用
+    if (formData.generatedSuggestion) {
+      console.log('✅ AI生成済み献立データを使用:', formData.generatedSuggestion);
+      setMealSuggestion(formData.generatedSuggestion);
+      addToHistory(formData.generatedSuggestion);
+      setIsRegenerating(false);
+    } else {
+      // フォームデータに基づいて献立を生成
+      console.log('🔄 従来システムで献立生成を実行');
+      generateMealSuggestion();
+    }
+  }, [formData.generatedSuggestion, generateMealSuggestion, addToHistory]);
 
   const handleToggleFavorite = () => {
     if (mealSuggestion) {
@@ -313,16 +325,183 @@ export default function ResultPage() {
   };
 
   const handleGoHome = () => {
+    // ホームに戻る際にAI生成データをクリア
+    clearGeneratedSuggestion();
     router.push('/');
   };
 
+
   const handleCreateNew = async () => {
     setIsRegenerating(true);
+    // 現在の献立を一時的にクリア（新しいデータの強制表示）
+    setMealSuggestion(null);
+    // AI生成データもクリアして新しい生成を強制
+    clearGeneratedSuggestion();
+    console.log('🔄 [結果画面] 新しい献立を再生成中...', formData.ingredients);
     
-    // 少し遅延を入れてローディング感を演出
-    setTimeout(() => {
+    try {
+      // APIキーと優先プロバイダーの状態を確認
+      const { useApiKeyStore } = await import('../../lib/settings-store');
+      const { generateMealSuggestion } = await import('../../lib/meal-generation');
+      
+      const apiKeyStore = useApiKeyStore.getState();
+      const preferredProvider = apiKeyStore.getPreferredProvider('mealGeneration');
+      
+      const availableKeys = {
+        groqApiKey: apiKeyStore.getApiKey('groqApiKey'),
+        geminiApiKey: apiKeyStore.getApiKey('geminiApiKey'),
+        openaiApiKey: apiKeyStore.getApiKey('openaiApiKey'),
+        anthropicApiKey: apiKeyStore.getApiKey('anthropicApiKey'),
+        huggingfaceApiKey: apiKeyStore.getApiKey('huggingfaceApiKey'),
+        togetherApiKey: apiKeyStore.getApiKey('togetherApiKey'),
+      };
+      
+      const hasAnyApiKey = Object.values(availableKeys).some(key => !!key);
+      
+      console.log('🔑 [結果画面] APIキー状態確認:', {
+        preferredProvider: preferredProvider || 'auto',
+        hasAnyApiKey,
+        availableProviders: Object.entries(availableKeys)
+          .filter(([_, key]) => !!key)
+          .map(([provider, key]) => ({
+            provider,
+            keyLength: key.length,
+            keyPreview: `${key.substring(0, 8)}...`
+          })),
+        timestamp: new Date().toISOString()
+      });
+      
+      // キャッシュを回避するためのユニークID生成
+      const requestId = `regenerate_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const variationWords = [
+        '別のアプローチで',
+        '異なる調理法で', 
+        '新しいスタイルで',
+        '違う味付けで',
+        '別の組み合わせで',
+        'アレンジした',
+        'ユニークな',
+        '創作的な'
+      ];
+      const randomVariation = variationWords[Math.floor(Math.random() * variationWords.length)];
+      
+      if (!hasAnyApiKey) {
+        console.warn('⚠️ [結果画面] APIキーが設定されていません。モックデータで再生成します。');
+        generateMockMealSuggestion(); // 従来のモック生成にフォールバック
+        return;
+      }
+      
+      // 現在のフォームデータを新しいAI統合システム向けに変換（キャッシュ回避）
+      const uniqueTimestamp = Date.now();
+      const randomSeed = Math.floor(Math.random() * 10000);
+      const cuisineStyles = ['和風', '洋風', '中華風', '創作', 'アジアン', '地中海風', '家庭料理風'];
+      const cookingMethods = ['炒める', '煮る', '焼く', '蒸す', '揚げる', 'グリル', 'オーブン調理'];
+      const seasonings = ['醤油ベース', 'みそベース', 'トマトベース', 'クリームベース', '和風だし', 'スパイス系'];
+      
+      const randomCuisine = cuisineStyles[Math.floor(Math.random() * cuisineStyles.length)];
+      const randomMethod = cookingMethods[Math.floor(Math.random() * cookingMethods.length)];
+      const randomSeasoning = seasonings[Math.floor(Math.random() * seasonings.length)];
+      
+      const mealPreferences = {
+        ingredients: [
+          ...(formData.ingredients || ['野菜', '肉類', '調味料']),
+          `時刻${uniqueTimestamp}の新しい発想で`,
+          `ランダムシード${randomSeed}`
+        ],
+        servings: formData.servings || 2,
+        cookingTime: formData.cookingTime === 'unlimited' ? '60' : (formData.cookingTime || '45'),
+        mealType: formData.mealType || 'dinner',
+        avoidIngredients: [
+          ...(formData.avoidIngredients || []),
+          `${randomVariation}料理を提案してください`,
+          '前回とは全く違うレシピで',
+          `${randomCuisine}テイストの`,
+          `${randomMethod}を使った`,
+          `${randomSeasoning}で`,
+          `リクエストID: ${requestId}`,
+          `生成時刻: ${new Date().toISOString()}`,
+          '毎回異なる創作料理を',
+          'オリジナリティ重視で'
+        ],
+        allergies: formData.allergies || [],
+        nutritionBalance: formData.nutritionBalance || 'balanced',
+        difficulty: formData.difficulty || 'easy',
+        dishCount: formData.dishCount || 3,
+        budget: formData.budget || 'standard',
+      };
+      
+      console.log('📡 [結果画面] 新しい献立のAI統合APIリクエスト:', {
+        mealPreferences,
+        preferredProvider: preferredProvider || 'auto',
+        requestId,
+        randomVariation,
+        randomCuisine,
+        randomMethod,
+        randomSeasoning,
+        uniqueTimestamp,
+        randomSeed,
+        avoidIngredientsCount: mealPreferences.avoidIngredients.length,
+        cacheBreakers: mealPreferences.avoidIngredients.filter(item => 
+          item.includes('時刻') || item.includes('リクエストID') || item.includes('生成時刻')
+        )
+      });
+      
+      // **新しいAI統合システムで再生成**（キャッシュ回避のため短い待機）
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const result = await generateMealSuggestion(mealPreferences, preferredProvider);
+      
+      console.log('📊 [結果画面] 新しい献立のAI統合APIレスポンス:', {
+        success: result.success,
+        provider: result.provider,
+        hasError: !!result.error,
+        error: result.error,
+        hasSuggestion: !!result.suggestion,
+        recipeCount: result.suggestion?.recipes?.length || 0
+      });
+      
+      if (result.success && result.suggestion) {
+        console.log(`✅ [結果画面] 新しい献立生成成功! プロバイダー: ${result.provider}`);
+        
+        // プロバイダー情報を献立タイトルに追加
+        const providerEmoji = result.provider === 'Gemini' ? '💎' : 
+                             result.provider === 'Groq' ? '🚀' :
+                             result.provider === 'OpenAI' ? '🧠' :
+                             result.provider === 'Anthropic' ? '🤖' : '✨';
+        
+        // AI生成済み献立データを使用して新しいタイトルを付与
+        const newSuggestion = {
+          ...result.suggestion,
+          id: `regenerated-suggestion-${Date.now()}`,
+          title: `${providerEmoji} ${randomVariation}${result.suggestion.title}`,
+          description: `${result.suggestion.description} (${new Date().toLocaleTimeString()}再生成)`,
+          createdAt: new Date(),
+        };
+
+        // 画面に新しい献立を反映
+        setMealSuggestion(newSuggestion);
+        
+        // 履歴にも追加（任意）
+        addToHistory(newSuggestion);
+        
+        console.log('🎉 [結果画面] 新しい献立を画面に反映完了:', {
+          title: newSuggestion.title,
+          provider: result.provider,
+          recipeCount: newSuggestion.recipes.length
+        });
+        
+      } else {
+        console.warn('⚠️ API失敗、既存のサンプルから別のバリエーション生成');
+        // API失敗時は既存のロジックを使用
+        generateMockMealSuggestion();
+      }
+      
+    } catch (error) {
+      console.error('❌ 新しい献立生成エラー:', error);
+      // エラー時は既存のロジックを使用
       generateMealSuggestion();
-    }, 800);
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   if ((isLoading || !mealSuggestion) && !isRegenerating) {
@@ -393,6 +572,28 @@ export default function ResultPage() {
                   {mealSuggestion?.title}
                 </h1>
                 <p className="text-gray-600">{mealSuggestion?.description}</p>
+                
+                {/* AI生成情報 */}
+                {formData.generatedSuggestion && (
+                  <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    <span className="text-blue-600">🤖</span>
+                    <span>AI生成</span>
+                  </div>
+                )}
+                
+                {/* タグ表示 */}
+                {mealSuggestion?.tags && mealSuggestion.tags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2 justify-center">
+                    {mealSuggestion.tags.map((tag, index) => (
+                      <span 
+                        key={index} 
+                        className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </motion.div>
 
               {/* サマリー情報 */}
@@ -557,6 +758,7 @@ export default function ResultPage() {
                   <RefreshCw className={`w-5 h-5 ${isRegenerating ? 'animate-spin' : ''}`} />
                   <span>{isRegenerating ? '生成中...' : '他の献立を見る'}</span>
                 </button>
+
 
                 {/* ホームに戻る */}
                 <button

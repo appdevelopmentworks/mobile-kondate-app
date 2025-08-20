@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import MobileLayout from '../../../components/layout/MobileLayout';
 import { useMealStore } from '../../../lib/store';
-import { generateMeals, checkMealGenerationStatus } from '../../../lib/meal-generation';
+import { generateMealSuggestion, checkMealGenerationStatus } from '../../../lib/meal-generation';
+import { useApiKeyStore } from '../../../lib/settings-store';
 import { sampleRecipes } from '../../../lib/sample-data';
 import type { MealSuggestion, Recipe } from '../../../lib/types';
 import { 
@@ -44,7 +46,8 @@ const quickMealPatterns = {
 
 export default function QuickMealPage() {
   const router = useRouter();
-  const { addToHistory } = useMealStore();
+  const { addToHistory, setGeneratedSuggestion } = useMealStore();
+  const { getApiKey, getPreferredProvider } = useApiKeyStore();
   const [preferences, setPreferences] = useState<QuickPreferences>({
     mealType: 'auto',
     servings: 2,
@@ -59,12 +62,37 @@ export default function QuickMealPage() {
     message: string;
   } | null>(null);
 
-  // コンポーネントマウント時にGroq API状態をチェック
+  // コンポーネントマウント時にAPI状態をチェック
   React.useEffect(() => {
-    const status = checkMealGenerationStatus();
-    setApiStatus(status);
-    console.log('🔍 Groq API状態チェック:', status);
-  }, []);
+    const checkAPIStatus = async () => {
+      const status = await checkMealGenerationStatus();
+      setApiStatus(status);
+      
+      // 詳細なAPIキー状態確認
+      const availableKeys = {
+        groq: getApiKey('groqApiKey'),
+        gemini: getApiKey('geminiApiKey'),
+        openai: getApiKey('openaiApiKey'),
+        anthropic: getApiKey('anthropicApiKey'),
+        huggingface: getApiKey('huggingfaceApiKey'),
+        together: getApiKey('togetherApiKey'),
+      };
+      
+      const preferredProvider = getPreferredProvider('mealGeneration');
+      
+      console.log('🔍 [おまかせ献立] APIキー状態チェック:', {
+        status,
+        availableKeys: Object.entries(availableKeys).reduce((acc, [key, val]) => {
+          acc[key] = !!val ? `設定済み(${val.length}文字)` : '未設定';
+          return acc;
+        }, {} as Record<string, string>),
+        preferredProvider: preferredProvider || 'auto',
+        timestamp: new Date().toISOString()
+      });
+    };
+    
+    checkAPIStatus();
+  }, [getApiKey, getPreferredProvider]);
 
   const mealTypeOptions = [
     { value: 'auto' as const, label: '自動選択', icon: Sparkles, description: '時間に応じて自動で選択' },
@@ -126,70 +154,6 @@ export default function QuickMealPage() {
     return styleIngredients[style][mealType] || styleIngredients['mixed'][mealType];
   };
 
-  // Groq APIのレスポンスをMealSuggestion形式に変換
-  const convertGroqResponseToMealSuggestion = (
-    apiResponse: any,
-    preferences: QuickPreferences,
-    mealType: '朝食' | '昼食' | '夕食'
-  ): MealSuggestion => {
-    // Groq APIのレスポンスをRecipe形式に変換
-    const recipes: Recipe[] = apiResponse.meals.map((meal: any, index: number) => ({
-      id: `groq-meal-${Date.now()}-${index}`,
-      name: meal.name,
-      description: `${meal.category} - ${meal.difficulty}レベル`,
-      ingredients: meal.ingredients.map((ing: string, i: number) => ({
-        name: ing,
-        amount: `適量`,
-        unit: '',
-        category: 'other' as const
-      })),
-      steps: meal.instructions.map((instruction: string, i: number) => ({
-        order: i + 1,
-        description: instruction,
-        duration: Math.ceil(meal.cookingTime / meal.instructions.length),
-        temperature: undefined,
-        tips: meal.tips && meal.tips[i] ? [meal.tips[i]] : []
-      })),
-      cookingTime: meal.cookingTime,
-      difficulty: meal.difficulty as 'easy' | 'medium' | 'hard',
-      servings: meal.servings,
-      nutrition: {
-        calories: Math.round(300 + Math.random() * 200), // 仮のカロリー
-        protein: Math.round(15 + Math.random() * 15),
-        carbs: Math.round(30 + Math.random() * 20),
-        fat: Math.round(10 + Math.random() * 15)
-      },
-      tags: [meal.category, meal.difficulty, preferences.preferredStyle],
-      imageUrl: '',
-      createdAt: new Date(),
-      category: meal.category as 'main' | 'side' | 'soup' | 'rice' | 'dessert'
-    }));
-
-    // 総カロリーと調理時間を計算
-    const totalCalories = recipes.reduce((sum, recipe) => sum + recipe.nutrition.calories, 0);
-    const totalTime = Math.max(...recipes.map(recipe => recipe.cookingTime));
-
-    // 買い物リストを生成
-    const shoppingList = generateShoppingList(recipes);
-
-    // 調理スケジュールを生成
-    const cookingSchedule = generateCookingSchedule(recipes);
-
-    // スタイルに応じたタイトル生成
-    const stylePrefix = preferences.preferredStyle === 'mixed' ? 'AI推奨' : `${preferences.preferredStyle}`;
-    
-    return {
-      id: `groq-quick-meal-${Date.now()}`,
-      title: `${stylePrefix}${mealType}セット`,
-      description: `${preferences.servings}人分・約${totalTime}分で作れるAIが推奨する献立です`,
-      recipes,
-      totalTime,
-      totalCalories,
-      shoppingList,
-      cookingSchedule,
-      createdAt: new Date(),
-    };
-  };
 
   const getCurrentTimeBasedMealType = (): '朝食' | '昼食' | '夕食' => {
     const hour = new Date().getHours();
@@ -198,7 +162,7 @@ export default function QuickMealPage() {
     return '夕食';
   };
 
-  const generateMealSuggestion = (): MealSuggestion => {
+  const generateLocalMealSuggestion = (): MealSuggestion => {
     // 食事タイプを決定
     const mealType = preferences.mealType === 'auto' 
       ? getCurrentTimeBasedMealType() 
@@ -229,6 +193,8 @@ export default function QuickMealPage() {
       recipes: selectedRecipes,
       totalTime,
       totalCalories,
+      servings: preferences.servings,
+      tags: ['おまかせ', stylePrefix.replace('の', ''), mealType],
       shoppingList,
       cookingSchedule,
       createdAt: new Date(),
@@ -297,20 +263,38 @@ export default function QuickMealPage() {
     setError(null);
 
     try {
-      console.log('🚀 Groq APIでおまかせ献立生成開始...', { preferences });
+      console.log('🚀 [おまかせ献立] AI献立生成開始...', { preferences });
       
-      // APIキーの状態を詳細にチェック
-      const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
-      console.log('🔑 APIキー確認:', {
-        hasApiKey: !!apiKey,
-        keyLength: apiKey?.length || 0,
-        keyPrefix: apiKey?.substring(0, 4) || 'なし',
-        envVarExists: typeof process.env.NEXT_PUBLIC_GROQ_API_KEY !== 'undefined'
+      // 優先プロバイダーを取得
+      const preferredProvider = getPreferredProvider('mealGeneration');
+      const availableKeys = {
+        groqApiKey: getApiKey('groqApiKey'),
+        geminiApiKey: getApiKey('geminiApiKey'),
+        openaiApiKey: getApiKey('openaiApiKey'),
+        anthropicApiKey: getApiKey('anthropicApiKey'),
+        huggingfaceApiKey: getApiKey('huggingfaceApiKey'),
+        togetherApiKey: getApiKey('togetherApiKey'),
+      };
+      
+      // 使用可能なAPIキーがあるか確認
+      const hasAnyApiKey = Object.values(availableKeys).some(key => !!key);
+      
+      console.log('🔑 [おまかせ献立] APIキー状態確認:', {
+        preferredProvider: preferredProvider || 'auto',
+        hasAnyApiKey,
+        availableProviders: Object.entries(availableKeys)
+          .filter(([_, key]) => !!key)
+          .map(([provider, key]) => ({
+            provider,
+            keyLength: key.length,
+            keyPreview: `${key.substring(0, 8)}...`
+          })),
+        timestamp: new Date().toISOString()
       });
       
-      if (!apiKey) {
+      if (!hasAnyApiKey) {
         console.warn('⚠️ APIキーが設定されていません。モックデータで生成します。');
-        const mealData = generateMealSuggestion();
+        const mealData = generateLocalMealSuggestion();
         addToHistory(mealData);
         router.push('/result');
         return;
@@ -321,93 +305,91 @@ export default function QuickMealPage() {
         ? getCurrentTimeBasedMealType() 
         : preferences.mealType;
       
-      // Groq APIのリクエストを構築
-      const mealRequest = {
+      // AI献立生成リクエストを構築
+      const mealPreferences = {
         ingredients: generateStyleBasedIngredients(preferences.preferredStyle, mealType),
         servings: preferences.servings,
-        cookingTime: 45,
+        cookingTime: '45', // 文字列形式
         mealType: mealType === '朝食' ? 'breakfast' as const : 
                  mealType === '昼食' ? 'lunch' as const : 'dinner' as const,
-        dietaryRestrictions: preferences.dietaryRestrictions,
-        preferences: [`${preferences.preferredStyle}で作りたい`],
-        difficulty: 'medium' as const,
-        cuisine: preferences.preferredStyle === 'mixed' ? '和洋中問わず' : preferences.preferredStyle
+        avoidIngredients: preferences.dietaryRestrictions,
+        allergies: [],
+        nutritionBalance: 'balanced' as const,
+        difficulty: 'easy' as const,
+        dishCount: 3,
+        budget: 'standard' as const,
       };
       
-      console.log('🍴 Groq APIリクエスト詳細:', {
-        ingredients: mealRequest.ingredients,
-        servings: mealRequest.servings,
-        mealType: mealRequest.mealType,
-        cuisine: mealRequest.cuisine,
+      console.log('🍴 [おまかせ献立] AI献立生成リクエスト詳細:', {
+        ingredients: mealPreferences.ingredients,
+        servings: mealPreferences.servings,
+        mealType: mealPreferences.mealType,
+        preferredStyle: preferences.preferredStyle,
+        preferredProvider: preferredProvider || 'auto',
         timestamp: new Date().toISOString()
       });
       
       // 実際のAPI呼び出し開始時刻を記録
       const apiStartTime = Date.now();
-      console.log('📡 Groq API呼び出し開始...', { startTime: apiStartTime });
+      console.log('📡 [おまかせ献立] AI API呼び出し開始...', { startTime: apiStartTime });
       
-      // Groq APIで献立生成
-      const apiResponse = await generateMeals(mealRequest);
+      // 新しいAI統合システムで献立生成
+      const result = await generateMealSuggestion(mealPreferences, preferredProvider);
       
       const apiEndTime = Date.now();
       const apiDuration = apiEndTime - apiStartTime;
       
-      console.log('📊 Groq APIレスポンス詳細:', {
-        success: apiResponse.success,
-        source: apiResponse.source,
+      console.log('📊 [おまかせ献立] AI APIレスポンス詳細:', {
+        success: result.success,
+        provider: result.provider,
         duration: `${apiDuration}ms`,
-        mealsCount: apiResponse.meals?.length || 0,
-        error: apiResponse.error,
-        hasRawResponse: !!apiResponse.rawResponse,
-        rawResponseLength: apiResponse.rawResponse?.length || 0
+        hasError: !!result.error,
+        error: result.error,
+        hasSuggestion: !!result.suggestion,
+        recipeCount: result.suggestion?.recipes?.length || 0
       });
       
       // レスポンスの詳細ログ
-      if (apiResponse.meals && apiResponse.meals.length > 0) {
-        console.log('🍽️ 生成された献立一覧:');
-        apiResponse.meals.forEach((meal, index) => {
-          console.log(`  ${index + 1}. ${meal.name}`, {
-            category: meal.category,
-            difficulty: meal.difficulty,
-            cookingTime: meal.cookingTime,
-            ingredientsCount: meal.ingredients.length,
-            instructionsCount: meal.instructions.length
-          });
+      if (result.success && result.suggestion) {
+        console.log('🍽️ [おまかせ献立] 生成された献立詳細:', {
+          title: result.suggestion.title,
+          description: result.suggestion.description,
+          totalTime: result.suggestion.totalTime,
+          servings: result.suggestion.servings,
+          recipes: result.suggestion.recipes.map(recipe => ({
+            name: recipe.name,
+            cookingTime: recipe.cookingTime,
+            difficulty: recipe.difficulty
+          }))
         });
       }
       
-      if (apiResponse.success && apiResponse.meals && apiResponse.meals.length > 0) {
-        if (apiResponse.source === 'groq-api') {
-          console.log('✅ Groq API献立生成成功! 実際のAI生成献立を使用');
-          
-          // APIの生レスポンスも表示（デバッグ用）
-          if (apiResponse.rawResponse) {
-            console.log('📄 Groq API生レスポンス（最初の500文字）:');
-            console.log(apiResponse.rawResponse.substring(0, 500) + '...');
-          }
-        } else {
-          console.log('🎭 モックデータで献立生成（Groq API未利用）');
-        }
+      if (result.success && result.suggestion) {
+        console.log(`✅ [おまかせ献立] AI献立生成成功! プロバイダー: ${result.provider}`);
         
-        // Groq APIのレスポンスをMealSuggestion形式に変換
-        const mealData = convertGroqResponseToMealSuggestion(apiResponse, preferences, mealType);
+        // プロバイダー情報を献立タイトルに追加
+        const providerEmoji = result.provider === 'Gemini' ? '💎' : 
+                             result.provider === 'Groq' ? '🚀' :
+                             result.provider === 'OpenAI' ? '🧠' :
+                             result.provider === 'Anthropic' ? '🤖' : '✨';
         
-        // 生成された献立にソース情報を追加
-        mealData.title = `${apiResponse.source === 'groq-api' ? '🤖 AI生成' : '🎭 サンプル'}${mealData.title}`;
+        result.suggestion.title = `${providerEmoji} ${result.suggestion.title}`;
         
-        // 履歴に追加
-        addToHistory(mealData);
+        // AI生成献立として保存し、履歴にも追加
+        console.log('📋 [おまかせ献立] AI生成献立をストアに保存:', result.suggestion);
+        setGeneratedSuggestion(result.suggestion);
+        addToHistory(result.suggestion);
         
         // 結果ページに遷移
         router.push('/result');
         
       } else {
-        console.warn('⚠️ Groq API失敗、モックデータにフォールバック:', apiResponse.error);
+        console.warn('⚠️ [おまかせ献立] AI生成失敗、モックデータにフォールバック:', result.error);
         
         // フォールバック: モックデータで献立を生成
-        const mealData = generateMealSuggestion();
-        mealData.title = `🎭 サンプル${mealData.title}`;
-        addToHistory(mealData);
+        const mockMealData = generateLocalMealSuggestion();
+        mockMealData.title = `🎭 サンプル${mockMealData.title}`;
+        addToHistory(mockMealData);
         router.push('/result');
       }
       
@@ -425,7 +407,7 @@ export default function QuickMealPage() {
       
       // エラー時もモックデータでフォールバック
       try {
-        const mealData = generateMealSuggestion();
+        const mealData = generateLocalMealSuggestion();
         mealData.title = `🎭 サンプル${mealData.title}`;
         addToHistory(mealData);
         router.push('/result');
@@ -439,206 +421,199 @@ export default function QuickMealPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-cyan-400 to-blue-600 p-4">
-      <div className="max-w-md mx-auto">
-        {/* ヘッダー */}
-        <div className="text-center mb-8 bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-          <div className="text-6xl mb-4">✨</div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            おまかせ献立
-          </h1>
-          <p className="text-gray-600 mb-3">
-            簡単な設定で美味しい献立を提案します
-          </p>
-          
-          {/* Groq API状態表示 */}
-          {apiStatus && (
-            <div className={`mt-4 p-3 rounded-xl ${
-              apiStatus.status === 'ready' 
-                ? 'bg-green-50 border border-green-200' 
-                : 'bg-yellow-50 border border-yellow-200'
-            }`}>
-              <div className="flex items-center justify-center gap-2 mb-1">
-                {apiStatus.status === 'ready' ? (
-                  <>
-                    <span className="text-green-600">🤖</span>
-                    <span className="text-sm font-medium text-green-800">AI利用可能</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-yellow-600">🎭</span>
-                    <span className="text-sm font-medium text-yellow-800">モックデータで生成</span>
-                  </>
-                )}
-              </div>
-              <p className={`text-xs ${
-                apiStatus.status === 'ready' ? 'text-green-700' : 'text-yellow-700'
+    <MobileLayout 
+      title="おまかせ献立" 
+      showBack={true} 
+      showBottomNav={false}
+      onBack={() => router.push('/')}
+    >
+      <div className="min-h-screen bg-gradient-to-br from-blue-500 via-cyan-400 to-blue-600 p-4">
+        <div className="max-w-md mx-auto">
+          {/* 説明セクション */}
+          <div className="text-center mb-8 bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+            <div className="text-6xl mb-4">✨</div>
+            <p className="text-gray-600 mb-3">
+              簡単な設定で美味しい献立を提案します
+            </p>
+            
+            {/* API状態表示 */}
+            {apiStatus && (
+              <div className={`mt-4 p-3 rounded-xl ${
+                apiStatus.status === 'ready' 
+                  ? 'bg-green-50 border border-green-200' 
+                  : 'bg-yellow-50 border border-yellow-200'
               }`}>
-                {apiStatus.message}
-              </p>
-              
-              {/* デバッグ情報表示 */}
-              <details className="mt-2">
-                <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700">
-                  🔍 デバッグ情報を表示
-                </summary>
-                <div className="mt-2 p-2 bg-gray-50 rounded text-xs font-mono">
-                  <div className="space-y-1">
-                    <div>APIキー: {process.env.NEXT_PUBLIC_GROQ_API_KEY ? 
-                      `設定済み (${process.env.NEXT_PUBLIC_GROQ_API_KEY.substring(0, 8)}...)` : 
-                      '未設定'
-                    }</div>
-                    <div>環境変数: NEXT_PUBLIC_GROQ_API_KEY</div>
-                    <div>ステータス: {apiStatus.status}</div>
-                    <div>タイムスタンプ: {new Date().toLocaleString()}</div>
-                  </div>
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  {apiStatus.status === 'ready' ? (
+                    <>
+                      <span className="text-green-600">🤖</span>
+                      <span className="text-sm font-medium text-green-800">AI利用可能</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-yellow-600">🎭</span>
+                      <span className="text-sm font-medium text-yellow-800">モックデータで生成</span>
+                    </>
+                  )}
                 </div>
-              </details>
-            </div>
-          )}
-        </div>
+                <p className={`text-xs ${
+                  apiStatus.status === 'ready' ? 'text-green-700' : 'text-yellow-700'
+                }`}>
+                  {apiStatus.message}
+                </p>
+                
+                {/* デバッグ情報表示 */}
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700">
+                    🔍 デバッグ情報を表示
+                  </summary>
+                  <div className="mt-2 p-2 bg-gray-50 rounded text-xs font-mono">
+                    <div className="space-y-1">
+                      <div>優先プロバイダー: {getPreferredProvider('mealGeneration') || 'Auto'}</div>
+                      <div>Gemini: {getApiKey('geminiApiKey') ? `設定済み (${getApiKey('geminiApiKey').substring(0, 8)}...)` : '未設定'}</div>
+                      <div>Groq: {getApiKey('groqApiKey') ? `設定済み (${getApiKey('groqApiKey').substring(0, 8)}...)` : '未設定'}</div>
+                      <div>OpenAI: {getApiKey('openaiApiKey') ? `設定済み (${getApiKey('openaiApiKey').substring(0, 8)}...)` : '未設定'}</div>
+                      <div>ステータス: {apiStatus.status}</div>
+                      <div>タイムスタンプ: {new Date().toLocaleString()}</div>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            )}
+          </div>
 
-        <div className="space-y-6">
-          {/* 食事の種類 */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-              <Clock className="w-5 h-5 mr-2 text-blue-500" />
-              食事の種類
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {mealTypeOptions.map((option) => {
-                const Icon = option.icon;
-                return (
+          <div className="space-y-6">
+            {/* 食事の種類 */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <Clock className="w-5 h-5 mr-2 text-blue-500" />
+                食事の種類
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                {mealTypeOptions.map((option) => {
+                  const Icon = option.icon;
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => setPreferences(prev => ({ ...prev, mealType: option.value }))}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        preferences.mealType === option.value
+                          ? 'border-blue-400 bg-blue-50'
+                          : 'border-gray-200 bg-white hover:border-blue-200'
+                      }`}
+                    >
+                      <Icon className={`w-6 h-6 mx-auto mb-2 ${
+                        preferences.mealType === option.value ? 'text-blue-500' : 'text-gray-400'
+                      }`} />
+                      <p className="text-sm font-medium text-gray-800">{option.label}</p>
+                      <p className="text-xs text-gray-500">{option.description}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 人数 */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <Users className="w-5 h-5 mr-2 text-blue-500" />
+                人数
+              </h2>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {servingOptions.map((num) => (
                   <button
-                    key={option.value}
-                    onClick={() => setPreferences(prev => ({ ...prev, mealType: option.value }))}
+                    key={num}
+                    onClick={() => setPreferences(prev => ({ ...prev, servings: num }))}
+                    className={`min-w-[60px] h-12 rounded-full font-bold transition-all ${
+                      preferences.servings === num
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white/70 text-gray-600 hover:bg-blue-100'
+                    }`}
+                  >
+                    {num}人
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 料理のスタイル */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <Heart className="w-5 h-5 mr-2 text-blue-500" />
+                料理のスタイル
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                {styleOptions.map((style) => (
+                  <button
+                    key={style.value}
+                    onClick={() => setPreferences(prev => ({ ...prev, preferredStyle: style.value }))}
                     className={`p-4 rounded-xl border-2 transition-all ${
-                      preferences.mealType === option.value
+                      preferences.preferredStyle === style.value
                         ? 'border-blue-400 bg-blue-50'
                         : 'border-gray-200 bg-white hover:border-blue-200'
                     }`}
                   >
-                    <Icon className={`w-6 h-6 mx-auto mb-2 ${
-                      preferences.mealType === option.value ? 'text-blue-500' : 'text-gray-400'
-                    }`} />
-                    <p className="text-sm font-medium text-gray-800">{option.label}</p>
-                    <p className="text-xs text-gray-500">{option.description}</p>
+                    <div className="text-2xl mb-2">{style.emoji}</div>
+                    <p className="text-sm font-medium text-gray-800">{style.label}</p>
+                    <p className="text-xs text-gray-500">{style.description}</p>
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* 人数 */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-              <Users className="w-5 h-5 mr-2 text-blue-500" />
-              人数
-            </h2>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {servingOptions.map((num) => (
-                <button
-                  key={num}
-                  onClick={() => setPreferences(prev => ({ ...prev, servings: num }))}
-                  className={`min-w-[60px] h-12 rounded-full font-bold transition-all ${
-                    preferences.servings === num
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white/70 text-gray-600 hover:bg-blue-100'
-                  }`}
-                >
-                  {num}人
-                </button>
-              ))}
+            {/* 食事制限（オプション） */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <ChefHat className="w-5 h-5 mr-2 text-blue-500" />
+                食事制限（オプション）
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {dietaryOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleDietaryRestrictionToggle(option.value)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      preferences.dietaryRestrictions.includes(option.value)
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white/70 text-gray-600 hover:bg-blue-100'
+                    }`}
+                  >
+                    {option.emoji} {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* 料理のスタイル */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-              <Heart className="w-5 h-5 mr-2 text-blue-500" />
-              料理のスタイル
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {styleOptions.map((style) => (
-                <button
-                  key={style.value}
-                  onClick={() => setPreferences(prev => ({ ...prev, preferredStyle: style.value }))}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    preferences.preferredStyle === style.value
-                      ? 'border-blue-400 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-blue-200'
-                  }`}
-                >
-                  <div className="text-2xl mb-2">{style.emoji}</div>
-                  <p className="text-sm font-medium text-gray-800">{style.label}</p>
-                  <p className="text-xs text-gray-500">{style.description}</p>
-                </button>
-              ))}
+            {/* エラーメッセージ */}
+            {error && (
+              <div className="bg-red-50/90 backdrop-blur-sm border border-red-200 rounded-2xl p-4 shadow-lg">
+                <p className="text-red-600 text-sm font-medium">❌ {error}</p>
+              </div>
+            )}
+
+            {/* 生成ボタン */}
+            <div className="pt-4">
+              <button
+                onClick={handleGenerateMeal}
+                disabled={isGenerating}
+                className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold text-lg py-4 rounded-2xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
+              >
+                {isGenerating ? (
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+                    {apiStatus?.status === 'ready' ? 'AIで献立生成中...' : '献立を生成中...'}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <Sparkles className="w-6 h-6 mr-2" />
+                    {apiStatus?.status === 'ready' ? 'AIでおまかせ献立を作成' : 'おまかせ献立を作成'}
+                  </div>
+                )}
+              </button>
             </div>
-          </div>
-
-          {/* 食事制限（オプション） */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-              <ChefHat className="w-5 h-5 mr-2 text-blue-500" />
-              食事制限（オプション）
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              {dietaryOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => handleDietaryRestrictionToggle(option.value)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    preferences.dietaryRestrictions.includes(option.value)
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white/70 text-gray-600 hover:bg-blue-100'
-                  }`}
-                >
-                  {option.emoji} {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* エラーメッセージ */}
-          {error && (
-            <div className="bg-red-50/90 backdrop-blur-sm border border-red-200 rounded-2xl p-4 shadow-lg">
-              <p className="text-red-600 text-sm font-medium">❌ {error}</p>
-            </div>
-          )}
-
-          {/* 生成ボタン */}
-          <div className="pt-4">
-            <button
-              onClick={handleGenerateMeal}
-              disabled={isGenerating}
-              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold text-lg py-4 rounded-2xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
-            >
-              {isGenerating ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 mr-2 animate-spin" />
-                  {apiStatus?.status === 'ready' ? 'AIで献立生成中...' : '献立を生成中...'}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 mr-2" />
-                  {apiStatus?.status === 'ready' ? 'AIでおまかせ献立を作成' : 'おまかせ献立を作成'}
-                </div>
-              )}
-            </button>
-          </div>
-
-          {/* 戻るボタン */}
-          <div className="text-center">
-            <button
-              onClick={() => router.push('/')}
-              className="text-white font-medium underline hover:text-white/80 transition-colors"
-            >
-              ← ホームに戻る
-            </button>
           </div>
         </div>
       </div>
-    </div>
+    </MobileLayout>
   );
 }

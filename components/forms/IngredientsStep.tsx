@@ -32,7 +32,9 @@ export default function IngredientsStep() {
     }
   };
 
-  const handleCameraRecognition = (recognizedIngredients: string[]) => {
+  const handleCameraRecognition = (ingredientsOrImageData: string[] | string) => {
+    // Handle both string array (manual input) and string (image data)
+    const recognizedIngredients = Array.isArray(ingredientsOrImageData) ? ingredientsOrImageData : [];
     // 重複を避けながら認識された食材を追加
     const newIngredients = recognizedIngredients.filter(
       (ingredient) => !selectedIngredients.includes(ingredient)
