@@ -20,7 +20,7 @@ import {
 import {
   fileToBase64,
   resizeImage,
-  captureImageFromStream,
+  captureImageFromVideo,
   validateImageFile,
   DEFAULT_IMAGE_OPTIONS,
 } from '../../lib/camera/image-utils';
@@ -61,10 +61,16 @@ export default function CameraIngredientRecognition({
   const startCamera = useCallback(async () => {
     try {
       setError(null);
+      
+      // カメラアクセスのサポートチェック
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('このブラウザはカメラ機能をサポートしていません');
+      }
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: DEFAULT_CAMERA_CONFIG.width,
-          height: DEFAULT_CAMERA_CONFIG.height,
+          width: { ideal: DEFAULT_CAMERA_CONFIG.width },
+          height: { ideal: DEFAULT_CAMERA_CONFIG.height },
           facingMode: DEFAULT_CAMERA_CONFIG.facingMode,
         },
       });
@@ -72,10 +78,30 @@ export default function CameraIngredientRecognition({
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        
+        // ビデオの準備が完了するまで待機
+        await new Promise((resolve, reject) => {
+          const video = videoRef.current!;
+          video.onloadedmetadata = () => resolve(true);
+          video.onerror = reject;
+          
+          // タイムアウト設定
+          setTimeout(() => reject(new Error('カメラの起動がタイムアウトしました')), 10000);
+        });
       }
-    } catch (err) {
-      setError('カメラへのアクセスが拒否されました。設定を確認してください。');
+    } catch (err: any) {
       console.error('Camera access error:', err);
+      
+      // エラーメッセージを用途別に細かく設定
+      if (err.name === 'NotAllowedError') {
+        setError('カメラの使用が許可されていません。ブラウザの設定でカメラを許可してください。');
+      } else if (err.name === 'NotFoundError') {
+        setError('カメラが見つかりません。デバイスにカメラが接続されているか確認してください。');
+      } else if (err.name === 'NotReadableError') {
+        setError('カメラが他のアプリケーションで使用中です。他のアプリを閉じてから再度お試しください。');
+      } else {
+        setError(err.message || 'カメラへのアクセスに失敗しました。');
+      }
     }
   }, []);
 
@@ -92,7 +118,7 @@ export default function CameraIngredientRecognition({
 
   // 写真撮影
   const takePhoto = useCallback(async () => {
-    if (!stream) {
+    if (!stream || !videoRef.current) {
       setError('カメラが利用できません');
       return;
     }
@@ -101,20 +127,36 @@ export default function CameraIngredientRecognition({
       setIsProcessing(true);
       setError(null);
       
-      const imageFile = await captureImageFromStream(stream, DEFAULT_IMAGE_OPTIONS);
+      const video = videoRef.current;
+      
+      // ビデオの状態をチェック
+      if (video.readyState < 2) {
+        setError('カメラの準備が完了していません。しばらくお待ちください。');
+        setIsProcessing(false);
+        return;
+      }
+      
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        setError('カメラの映像が取得できません。カメラを再起動してください。');
+        setIsProcessing(false);
+        return;
+      }
+      
+      // 実際に表示されているvideo要素から直接キャプチャ
+      const imageFile = await captureImageFromVideo(video, DEFAULT_IMAGE_OPTIONS);
       const resizedFile = await resizeImage(imageFile, DEFAULT_IMAGE_OPTIONS);
       const base64 = await fileToBase64(resizedFile);
       
       setSelectedImage(`data:image/jpeg;base64,${base64}`);
       await processImage(base64);
       
-    } catch (err) {
-      setError('写真の撮影に失敗しました');
+    } catch (err: any) {
+      setError(err.message || '写真の撮影に失敗しました');
       console.error('Photo capture error:', err);
     } finally {
       setIsProcessing(false);
     }
-  }, [stream]);
+  }, [stream, videoRef]);
 
   // 画像ファイル選択
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {

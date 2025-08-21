@@ -97,7 +97,64 @@ const calculateAspectRatio = (
 };
 
 /**
- * カメラから画像をキャプチャ
+ * 実際に表示されているvideo要素から画像をキャプチャ
+ */
+export const captureImageFromVideo = (
+  videoElement: HTMLVideoElement,
+  options: ImageProcessingOptions
+): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        reject(new Error('Canvas contextの取得に失敗しました'));
+        return;
+      }
+
+      // video要素が準備できているかチェック
+      if (videoElement.videoWidth === 0 || videoElement.videoHeight === 0) {
+        reject(new Error('カメラの映像が準備できていません'));
+        return;
+      }
+
+      const { width, height } = calculateAspectRatio(
+        videoElement.videoWidth,
+        videoElement.videoHeight,
+        options.maxWidth,
+        options.maxHeight
+      );
+
+      canvas.width = width;
+      canvas.height = height;
+
+      // video要素から直接キャンバスに描画
+      ctx.drawImage(videoElement, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const file = new File([blob], `camera-${Date.now()}.${options.format}`, {
+              type: `image/${options.format}`,
+              lastModified: Date.now(),
+            });
+            resolve(file);
+          } else {
+            reject(new Error('画像のキャプチャに失敗しました'));
+          }
+        },
+        `image/${options.format}`,
+        options.quality
+      );
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+/**
+ * カメラから画像をキャプチャ（レガシー関数、使用非推奨）
  */
 export const captureImageFromStream = (
   stream: MediaStream,
@@ -144,9 +201,9 @@ export const captureImageFromStream = (
         reject(new Error('Canvas contextの取得に失敗しました'));
       }
 
-      // クリーンアップ
+      // クリーンアップ（注意：この実装はストリームを停止してしまう）
       video.srcObject = null;
-      stream.getTracks().forEach(track => track.stop());
+      // stream.getTracks().forEach(track => track.stop()); // 削除：メインのカメラも停止してしまう
     };
   });
 };
