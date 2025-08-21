@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Camera,
@@ -66,28 +66,86 @@ export default function CameraIngredientRecognition({
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('このブラウザはカメラ機能をサポートしていません');
       }
+
+      console.log('カメラアクセスを開始...');
       
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
+      // iOS Safari向けの制約設定
+      const constraints = {
         video: {
-          width: { ideal: DEFAULT_CAMERA_CONFIG.width },
-          height: { ideal: DEFAULT_CAMERA_CONFIG.height },
-          facingMode: DEFAULT_CAMERA_CONFIG.facingMode,
+          width: { min: 320, ideal: 640, max: 1280 },
+          height: { min: 240, ideal: 480, max: 720 },
+          facingMode: 'environment',
+          // iOS Safari向けの追加設定
+          aspectRatio: { ideal: 4/3 }
         },
-      });
+        audio: false
+      };
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('カメラストリーム取得成功:', mediaStream);
       
       setStream(mediaStream);
+      
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+        const video = videoRef.current;
+        video.srcObject = mediaStream;
+        
+        // iOS Safari向けの設定
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.muted = true;
+        video.autoplay = true;
+        
+        console.log('ビデオ要素にストリームを設定');
         
         // ビデオの準備が完了するまで待機
         await new Promise((resolve, reject) => {
-          const video = videoRef.current!;
-          video.onloadedmetadata = () => resolve(true);
-          video.onerror = reject;
+          let resolved = false;
+          
+          const handleLoadedMetadata = () => {
+            if (!resolved) {
+              resolved = true;
+              console.log('ビデオメタデータ読み込み完了');
+              resolve(true);
+            }
+          };
+          
+          const handleCanPlay = () => {
+            if (!resolved) {
+              resolved = true;
+              console.log('ビデオ再生準備完了');
+              resolve(true);
+            }
+          };
+          
+          const handleError = (error: any) => {
+            if (!resolved) {
+              resolved = true;
+              console.error('ビデオエラー:', error);
+              reject(error);
+            }
+          };
+          
+          video.addEventListener('loadedmetadata', handleLoadedMetadata);
+          video.addEventListener('canplay', handleCanPlay);
+          video.addEventListener('error', handleError);
+          
+          // 強制的に再生を開始（iOS Safari対応）
+          video.play().catch(err => {
+            console.warn('ビデオ自動再生失敗:', err);
+            // 自動再生が失敗してもエラーにしない
+          });
           
           // タイムアウト設定
-          setTimeout(() => reject(new Error('カメラの起動がタイムアウトしました')), 10000);
+          setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              reject(new Error('カメラの起動がタイムアウトしました'));
+            }
+          }, 15000); // タイムアウトを15秒に延長
         });
+        
+        console.log('カメラ初期化完了');
       }
     } catch (err: any) {
       console.error('Camera access error:', err);
@@ -99,8 +157,10 @@ export default function CameraIngredientRecognition({
         setError('カメラが見つかりません。デバイスにカメラが接続されているか確認してください。');
       } else if (err.name === 'NotReadableError') {
         setError('カメラが他のアプリケーションで使用中です。他のアプリを閉じてから再度お試しください。');
+      } else if (err.name === 'OverconstrainedError') {
+        setError('カメラの設定に問題があります。デバイスがカメラ要件を満たしていない可能性があります。');
       } else {
-        setError(err.message || 'カメラへのアクセスに失敗しました。');
+        setError(err.message || 'カメラへのアクセスに失敗しました。ページを再読み込みして再度お試しください。');
       }
     }
   }, []);
@@ -230,6 +290,14 @@ export default function CameraIngredientRecognition({
     }
   }, [stream, startCamera]);
 
+  // モーダルが開いたときにカメラを自動開始
+  useEffect(() => {
+    if (isOpen && !stream && !selectedImage) {
+      console.log('モーダルが開かれたのでカメラを開始');
+      startCamera();
+    }
+  }, [isOpen, stream, selectedImage, startCamera]);
+
   if (!isOpen) return null;
 
   return (
@@ -269,6 +337,22 @@ export default function CameraIngredientRecognition({
                     playsInline
                     muted
                     className="w-full h-full object-cover"
+                    style={{
+                      background: '#000',
+                      minHeight: '200px'
+                    }}
+                    onLoadedMetadata={() => {
+                      console.log('Video metadata loaded');
+                      if (videoRef.current) {
+                        console.log('Video dimensions:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+                      }
+                    }}
+                    onCanPlay={() => {
+                      console.log('Video can play');
+                    }}
+                    onError={(e) => {
+                      console.error('Video error:', e);
+                    }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-white">
