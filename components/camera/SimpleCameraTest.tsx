@@ -10,9 +10,9 @@ interface SimpleCameraTestProps {
 export default function SimpleCameraTest({ isOpen, onClose }: SimpleCameraTestProps) {
   const [error, setError] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // 基本的なカメラアクセス
   const startCamera = async () => {
     try {
       console.log('🎥 カメラアクセス開始...');
@@ -36,8 +36,6 @@ export default function SimpleCameraTest({ isOpen, onClose }: SimpleCameraTestPr
       if (videoRef.current) {
         console.log('🎬 ビデオ要素にストリーム設定');
         videoRef.current.srcObject = mediaStream;
-        
-        // iOS対応
         videoRef.current.setAttribute('playsinline', 'true');
         videoRef.current.muted = true;
         
@@ -45,7 +43,7 @@ export default function SimpleCameraTest({ isOpen, onClose }: SimpleCameraTestPr
           await videoRef.current.play();
           console.log('▶️ ビデオ再生開始');
         } catch (playError) {
-          console.log('⚠️ 自動再生失敗（よくあることです）:', playError);
+          console.log('⚠️ 自動再生失敗:', playError);
         }
       }
 
@@ -55,7 +53,6 @@ export default function SimpleCameraTest({ isOpen, onClose }: SimpleCameraTestPr
     }
   };
 
-  // カメラ停止
   const stopCamera = () => {
     if (stream) {
       console.log('🛑 カメラ停止');
@@ -64,17 +61,42 @@ export default function SimpleCameraTest({ isOpen, onClose }: SimpleCameraTestPr
     }
   };
 
-  // モーダル開時にカメラ開始
-  useEffect(() => {
-    if (isOpen) {
-      console.log('🚀 モーダル開いたのでカメラ開始');
-      startCamera();
-    } else {
-      stopCamera();
+  const capturePhoto = () => {
+    if (!videoRef.current || !stream) {
+      setError('カメラが利用できません');
+      return;
     }
-  }, [isOpen]);
 
-  // クリーンアップ
+    try {
+      console.log('📸 写真撮影中...');
+      
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('Canvas contextが取得できません');
+      }
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      setCapturedImage(imageDataUrl);
+      
+      console.log('✅ 写真撮影成功!');
+      
+    } catch (err: any) {
+      console.error('❌ 写真撮影エラー:', err);
+      setError(`撮影エラー: ${err.message}`);
+    }
+  };
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
+  };
+
   useEffect(() => {
     return () => {
       stopCamera();
@@ -86,7 +108,6 @@ export default function SimpleCameraTest({ isOpen, onClose }: SimpleCameraTestPr
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-md h-[85vh] flex flex-col overflow-hidden">
-        {/* ヘッダー */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="text-lg font-bold text-gray-800">カメラテスト</h2>
           <button
@@ -97,63 +118,116 @@ export default function SimpleCameraTest({ isOpen, onClose }: SimpleCameraTestPr
           </button>
         </div>
 
-        {/* カメラ表示エリア */}
         <div className="flex-1 bg-black relative">
-          {stream ? (
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-              style={{ background: '#000' }}
-              onLoadedMetadata={() => {
-                console.log('📊 ビデオメタデータ読み込み完了');
-                if (videoRef.current) {
-                  console.log(`📐 解像度: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`);
-                }
-              }}
-              onCanPlay={() => {
-                console.log('✅ ビデオ再生可能');
-              }}
-              onPlay={() => {
-                console.log('▶️ ビデオ再生中');
-              }}
-              onError={(e) => {
-                console.error('❌ ビデオエラー:', e);
-              }}
-            />
+          {capturedImage ? (
+            <div className="w-full h-full relative">
+              <img
+                src={capturedImage}
+                alt="撮影した写真"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute top-4 right-4">
+                <button
+                  onClick={retakePhoto}
+                  className="bg-white/90 p-2 rounded-full hover:bg-white transition-colors"
+                >
+                  🔄
+                </button>
+              </div>
+            </div>
+          ) : stream ? (
+            <div className="w-full h-full relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+                style={{ background: '#000' }}
+                onLoadedMetadata={() => {
+                  console.log('📊 ビデオメタデータ読み込み完了');
+                  if (videoRef.current) {
+                    console.log(`📐 解像度: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`);
+                  }
+                }}
+                onCanPlay={() => {
+                  console.log('✅ ビデオ再生可能');
+                }}
+                onPlay={() => {
+                  console.log('▶️ ビデオ再生中');
+                }}
+                onError={(e) => {
+                  console.error('❌ ビデオエラー:', e);
+                }}
+              />
+              
+              <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+                <button
+                  onClick={capturePhoto}
+                  className="bg-white hover:bg-gray-100 text-gray-800 p-4 rounded-full transition-colors shadow-lg"
+                >
+                  📸
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-white">
-              <div className="text-center">
-                <div className="text-2xl mb-4">📹</div>
-                <p>カメラ起動中...</p>
+              <div className="text-center p-8">
+                <div className="text-6xl mb-6">📹</div>
+                <h3 className="text-xl font-bold mb-4">カメラを起動してください</h3>
+                <p className="text-sm mb-6 text-gray-300">
+                  ボタンをタップしてカメラを開始してください
+                </p>
                 <button
                   onClick={startCamera}
-                  className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg"
                 >
-                  カメラ開始
+                  📸 カメラを開始
                 </button>
+                {error && (
+                  <div className="mt-4 p-4 bg-red-500/20 border border-red-500 rounded-lg">
+                    <p className="text-red-300 text-sm">{error}</p>
+                    <button
+                      onClick={startCamera}
+                      className="mt-2 text-red-300 underline text-sm"
+                    >
+                      もう一度試す
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* エラー表示 */}
-        {error && (
-          <div className="p-4 bg-red-100 text-red-700">
-            <p className="text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* フッター */}
         <div className="p-4 border-t border-gray-200">
-          <button
-            onClick={onClose}
-            className="w-full bg-gray-500 text-white py-2 rounded"
-          >
-            閉じる
-          </button>
+          {capturedImage ? (
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  console.log('✅ 写真を保存しました');
+                  alert('写真撮影成功！カメラ機能が正常に動作しています。');
+                  onClose();
+                }}
+                className="w-full bg-green-500 text-white py-3 rounded-xl font-bold"
+              >
+                ✅ 撮影完了！
+              </button>
+              <button
+                onClick={retakePhoto}
+                className="w-full bg-gray-500 text-white py-2 rounded-lg"
+              >
+                🔄 もう一度撮影
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onClose}
+              className="w-full bg-gray-500 text-white py-2 rounded"
+            >
+              閉じる
+            </button>
+          )}
         </div>
       </div>
     </div>
