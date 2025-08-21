@@ -6,7 +6,8 @@ import { useMealStore } from '../../lib/store';
 import { motion } from 'framer-motion';
 import { Plus, X, ChevronRight, Home, Camera } from 'lucide-react';
 import { commonIngredients } from '../../lib/sample-data';
-import CameraIngredientRecognition from '../camera/CameraIngredientRecognition';
+import SimpleCameraTest from '../camera/SimpleCameraTest';
+// import CameraIngredientRecognition from '../camera/CameraIngredientRecognition';
 
 export default function IngredientsStep() {
   const router = useRouter();
@@ -178,13 +179,20 @@ export default function IngredientsStep() {
           <span>ホームに戻る</span>
         </button>
       </div>
+      {/* カメラテスト用モーダル */}
+      <SimpleCameraTest
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+      />
       
-      {/* カメラ食材認識モーダル */}
+      {/* 元のカメラ食材認識モーダル（一時的にコメントアウト） */}
+      {/*
       <CameraIngredientRecognition
         isOpen={isCameraOpen}
         onIngredientsRecognized={handleCameraRecognition}
         onClose={() => setIsCameraOpen(false)}
       />
+      */}
     </div>
   );
 }
