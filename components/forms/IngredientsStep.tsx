@@ -8,6 +8,7 @@ import { Plus, X, ChevronRight, Home, Camera } from 'lucide-react';
 import { commonIngredients } from '../../lib/sample-data';
 import SimpleCameraTest from '../camera/SimpleCameraTest';
 import CameraPermissionTest from '../camera/CameraPermissionTest';
+import CameraIngredientRecognitionFixed from '../camera/CameraIngredientRecognitionFixed';
 // import CameraIngredientRecognition from '../camera/CameraIngredientRecognition';
 
 export default function IngredientsStep() {
@@ -19,6 +20,7 @@ export default function IngredientsStep() {
   const [customIngredient, setCustomIngredient] = useState('');
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isPermissionTestOpen, setIsPermissionTestOpen] = useState(false);
+  const [isTestCameraOpen, setIsTestCameraOpen] = useState(false);
 
   const toggleIngredient = (ingredient: string) => {
     setSelectedIngredients((prev) =>
@@ -103,18 +105,27 @@ export default function IngredientsStep() {
             <div className="space-y-2">
               <button
                 onClick={() => setIsCameraOpen(true)}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-purple-700 active:scale-95 transition-all duration-200 shadow-lg"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:from-green-600 hover:to-emerald-700 active:scale-95 transition-all duration-200 shadow-lg"
               >
                 <Camera className="w-5 h-5" />
-                <span>カメラで食材認識</span>
+                <span>📸 食材を撮影して認識</span>
               </button>
               
-              <button
-                onClick={() => setIsPermissionTestOpen(true)}
-                className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors text-sm"
-              >
-                🔍 カメラ権限テスト
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setIsPermissionTestOpen(true)}
+                  className="flex items-center justify-center gap-1 py-2 px-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                >
+                  🔍 権限テスト
+                </button>
+                
+                <button
+                  onClick={() => setIsTestCameraOpen(true)}
+                  className="flex items-center justify-center gap-1 py-2 px-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                >
+                  🎥 テスト撮影
+                </button>
+              </div>
             </div>
           </div>
 
@@ -196,10 +207,17 @@ export default function IngredientsStep() {
         onClose={() => setIsPermissionTestOpen(false)}
       />
       
-      {/* カメラテスト用モーダル */}
-      <SimpleCameraTest
+      {/* メインカメラ機能（食材認識統合） */}
+      <CameraIngredientRecognitionFixed
         isOpen={isCameraOpen}
+        onIngredientsRecognized={handleCameraRecognition}
         onClose={() => setIsCameraOpen(false)}
+      />
+      
+      {/* テスト用カメラモーダル */}
+      <SimpleCameraTest
+        isOpen={isTestCameraOpen}
+        onClose={() => setIsTestCameraOpen(false)}
       />
       
       {/* 元のカメラ食材認識モーダル（一時的にコメントアウト） */}
