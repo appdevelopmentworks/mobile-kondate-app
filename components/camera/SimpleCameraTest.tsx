@@ -35,16 +35,39 @@ export default function SimpleCameraTest({ isOpen, onClose }: SimpleCameraTestPr
 
       if (videoRef.current) {
         console.log('🎬 ビデオ要素にストリーム設定');
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.muted = true;
+        const video = videoRef.current;
+        video.srcObject = mediaStream;
+        
+        // iOS Safari向けの詳細設定
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.muted = true;
+        video.autoplay = true;
+        video.controls = false;
+        
+        // 明示的なサイズ設定
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.objectFit = 'cover';
+        
+        console.log('📺 ビデオ再生開始試行...');
         
         try {
-          await videoRef.current.play();
+          await video.play();
           console.log('▶️ ビデオ再生開始');
         } catch (playError) {
           console.log('⚠️ 自動再生失敗:', playError);
+          // iOSではこれが正常な動作
         }
+        
+        // ストリームの状態をチェック
+        setTimeout(() => {
+          console.log('🔍 ストリーム状態チェック:');
+          console.log('- ストリームアクティブ:', mediaStream.active);
+          console.log('- ビデオトラック数:', mediaStream.getVideoTracks().length);
+          console.log('- ビデオサイズ:', video.videoWidth, 'x', video.videoHeight);
+          console.log('- 再生状態:', video.paused ? '一時停止' : '再生中');
+        }, 1000);
       }
 
     } catch (err: any) {
@@ -142,16 +165,29 @@ export default function SimpleCameraTest({ isOpen, onClose }: SimpleCameraTestPr
                 autoPlay
                 playsInline
                 muted
+                controls={false}
                 className="w-full h-full object-cover"
-                style={{ background: '#000' }}
+                style={{ 
+                  background: '#000',
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
                 onLoadedMetadata={() => {
                   console.log('📊 ビデオメタデータ読み込み完了');
                   if (videoRef.current) {
                     console.log(`📐 解像度: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`);
+                    // 強制的に再描画
+                    videoRef.current.style.visibility = 'hidden';
+                    videoRef.current.offsetHeight; // リフロー強制
+                    videoRef.current.style.visibility = 'visible';
                   }
                 }}
                 onCanPlay={() => {
                   console.log('✅ ビデオ再生可能');
+                  if (videoRef.current) {
+                    videoRef.current.play().catch(console.warn);
+                  }
                 }}
                 onPlay={() => {
                   console.log('▶️ ビデオ再生中');

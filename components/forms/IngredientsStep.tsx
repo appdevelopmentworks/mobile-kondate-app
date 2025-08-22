@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { Plus, X, ChevronRight, Home, Camera } from 'lucide-react';
 import { commonIngredients } from '../../lib/sample-data';
 import SimpleCameraTest from '../camera/SimpleCameraTest';
+import CameraPermissionTest from '../camera/CameraPermissionTest';
 // import CameraIngredientRecognition from '../camera/CameraIngredientRecognition';
 
 export default function IngredientsStep() {
@@ -17,6 +18,7 @@ export default function IngredientsStep() {
   );
   const [customIngredient, setCustomIngredient] = useState('');
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isPermissionTestOpen, setIsPermissionTestOpen] = useState(false);
 
   const toggleIngredient = (ingredient: string) => {
     setSelectedIngredients((prev) =>
@@ -98,13 +100,22 @@ export default function IngredientsStep() {
             </div>
             
             {/* カメラで食材認識ボタン */}
-            <button
-              onClick={() => setIsCameraOpen(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-purple-700 active:scale-95 transition-all duration-200 shadow-lg"
-            >
-              <Camera className="w-5 h-5" />
-              <span>カメラで食材認識</span>
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() => setIsCameraOpen(true)}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-purple-700 active:scale-95 transition-all duration-200 shadow-lg"
+              >
+                <Camera className="w-5 h-5" />
+                <span>カメラで食材認識</span>
+              </button>
+              
+              <button
+                onClick={() => setIsPermissionTestOpen(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors text-sm"
+              >
+                🔍 カメラ権限テスト
+              </button>
+            </div>
           </div>
 
           {/* 選択された食材 */}
@@ -179,6 +190,12 @@ export default function IngredientsStep() {
           <span>ホームに戻る</span>
         </button>
       </div>
+      {/* 権限テストモーダル */}
+      <CameraPermissionTest
+        isOpen={isPermissionTestOpen}
+        onClose={() => setIsPermissionTestOpen(false)}
+      />
+      
       {/* カメラテスト用モーダル */}
       <SimpleCameraTest
         isOpen={isCameraOpen}
