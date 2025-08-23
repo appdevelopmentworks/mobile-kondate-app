@@ -258,21 +258,23 @@ export const useApiKeyStore = create<ApiKeyState>((set, get) => ({
       return newState;
     });
     
-    // セッションストレージに保存（ページリロード時まで保持）
+    // ローカルストレージに保存（永続化）
     if (typeof window !== 'undefined') {
       try {
-        sessionStorage.setItem(`api_key_${provider}`, key);
-        const saved = sessionStorage.getItem(`api_key_${provider}`);
-        console.log(`💾 SessionStorage保存: ${provider}`, {
+        // 簡易暗号化（Base64 + 文字列変換）
+        const encryptedKey = btoa(encodeURIComponent(key));
+        localStorage.setItem(`api_key_${provider}`, encryptedKey);
+        const saved = localStorage.getItem(`api_key_${provider}`);
+        console.log(`💾 LocalStorage保存: ${provider}`, {
           saved: !!saved,
           savedLength: saved?.length || 0,
-          matches: saved === key
+          encrypted: true
         });
       } catch (error) {
-        console.error(`❌ SessionStorage保存エラー: ${provider}`, error);
+        console.error(`❌ LocalStorage保存エラー: ${provider}`, error);
       }
     } else {
-      console.warn('⚠️ window未定義のためSessionStorage保存をスキップ');
+      console.warn('⚠️ window未定義のためLocalStorage保存をスキップ');
     }
     
     console.log(`✅ APIキーストア: ${provider} 設定完了`);
@@ -290,25 +292,33 @@ export const useApiKeyStore = create<ApiKeyState>((set, get) => ({
       stateKeyPreview: key ? `${key.substring(0, 8)}...` : 'empty'
     });
     
-    // セッションストレージから復元
+    // ローカルストレージから復元
     if (!key && typeof window !== 'undefined') {
       try {
-        const storedKey = sessionStorage.getItem(`api_key_${provider}`) || '';
-        console.log(`💾 SessionStorage復元: ${provider}`, {
-          hasStoredKey: !!storedKey,
-          storedKeyLength: storedKey.length,
-          storedKeyPreview: storedKey ? `${storedKey.substring(0, 8)}...` : 'empty'
+        const storedEncryptedKey = localStorage.getItem(`api_key_${provider}`) || '';
+        console.log(`💾 LocalStorage復元: ${provider}`, {
+          hasStoredKey: !!storedEncryptedKey,
+          storedKeyLength: storedEncryptedKey.length,
+          encrypted: true
         });
         
-        if (storedKey) {
-          key = storedKey;
-          set((state) => ({
-            keys: { ...state.keys, [provider]: key }
-          }));
-          console.log(`🔄 ストア状態に復元: ${provider}`);
+        if (storedEncryptedKey) {
+          try {
+            // 簡易復号化（Base64 + 文字列変換）
+            const decryptedKey = decodeURIComponent(atob(storedEncryptedKey));
+            key = decryptedKey;
+            set((state) => ({
+              keys: { ...state.keys, [provider]: key }
+            }));
+            console.log(`🔄 ストア状態に復元: ${provider}`);
+          } catch (decryptError) {
+            console.error(`❌ APIキー復号化エラー: ${provider}`, decryptError);
+            // 破損したデータを削除
+            localStorage.removeItem(`api_key_${provider}`);
+          }
         }
       } catch (error) {
-        console.error(`❌ SessionStorage読み込みエラー: ${provider}`, error);
+        console.error(`❌ LocalStorage読み込みエラー: ${provider}`, error);
       }
     }
     
@@ -366,14 +376,14 @@ export const useApiKeyStore = create<ApiKeyState>((set, get) => ({
       }
     });
     
-    // セッションストレージからも削除
+    // ローカルストレージからも削除
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('api_key_groqApiKey');
-      sessionStorage.removeItem('api_key_geminiApiKey');
-      sessionStorage.removeItem('api_key_huggingfaceApiKey');
-      sessionStorage.removeItem('api_key_togetherApiKey');
-      sessionStorage.removeItem('api_key_anthropicApiKey');
-      sessionStorage.removeItem('api_key_openaiApiKey');
+      localStorage.removeItem('api_key_groqApiKey');
+      localStorage.removeItem('api_key_geminiApiKey');
+      localStorage.removeItem('api_key_huggingfaceApiKey');
+      localStorage.removeItem('api_key_togetherApiKey');
+      localStorage.removeItem('api_key_anthropicApiKey');
+      localStorage.removeItem('api_key_openaiApiKey');
       
       // 優先プロバイダー設定もクリア
       localStorage.removeItem('preferred_provider_mealGeneration');
@@ -381,6 +391,36 @@ export const useApiKeyStore = create<ApiKeyState>((set, get) => ({
     }
   },
 }));
+
+// APIキーの初期化関数（アプリ起動時に呼び出し）
+export const initializeApiKeys = () => {
+  if (typeof window === 'undefined') return;
+  
+  const apiKeyStore = useApiKeyStore.getState();
+  const providers = ['groqApiKey', 'geminiApiKey', 'huggingfaceApiKey', 'togetherApiKey', 'anthropicApiKey', 'openaiApiKey'] as const;
+  
+  console.log('🔧 APIキーストア: 初期化開始');
+  
+  providers.forEach(provider => {
+    try {
+      const storedEncryptedKey = localStorage.getItem(`api_key_${provider}`) || '';
+      if (storedEncryptedKey) {
+        try {
+          const decryptedKey = decodeURIComponent(atob(storedEncryptedKey));
+          apiKeyStore.setApiKey(provider, decryptedKey);
+          console.log(`🔑 APIキー復元: ${provider}`);
+        } catch (decryptError) {
+          console.error(`❌ APIキー復元エラー: ${provider}`, decryptError);
+          localStorage.removeItem(`api_key_${provider}`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ APIキー初期化エラー: ${provider}`, error);
+    }
+  });
+  
+  console.log('✅ APIキーストア: 初期化完了');
+};
 
 // 設定の初期化関数（アプリ起動時に呼び出し）
 export const initializeSettings = () => {
@@ -391,4 +431,7 @@ export const initializeSettings = () => {
   if (storedSettings.darkMode) {
     document.documentElement.classList.add('dark');
   }
+  
+  // APIキーの初期化
+  initializeApiKeys();
 };

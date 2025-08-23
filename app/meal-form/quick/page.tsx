@@ -486,7 +486,7 @@ export default function QuickMealPage() {
             {/* 食事の種類 */}
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
               <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <Clock className="w-5 h-5 mr-2 text-blue-500" />
+                <Clock className="w-5 h-5 mr-2 text-pink-500" />
                 食事の種類
               </h2>
               <div className="grid grid-cols-2 gap-3">
@@ -498,12 +498,12 @@ export default function QuickMealPage() {
                       onClick={() => setPreferences(prev => ({ ...prev, mealType: option.value }))}
                       className={`p-4 rounded-xl border-2 transition-all ${
                         preferences.mealType === option.value
-                          ? 'border-blue-400 bg-blue-50'
-                          : 'border-gray-200 bg-white hover:border-blue-200'
+                          ? 'border-pink-400 bg-pink-50'
+                          : 'border-gray-200 bg-white hover:border-pink-200'
                       }`}
                     >
                       <Icon className={`w-6 h-6 mx-auto mb-2 ${
-                        preferences.mealType === option.value ? 'text-blue-500' : 'text-gray-400'
+                        preferences.mealType === option.value ? 'text-pink-500' : 'text-gray-400'
                       }`} />
                       <p className="text-sm font-medium text-gray-800">{option.label}</p>
                       <p className="text-xs text-gray-500">{option.description}</p>
@@ -516,7 +516,7 @@ export default function QuickMealPage() {
             {/* 人数 */}
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
               <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <Users className="w-5 h-5 mr-2 text-blue-500" />
+                <Users className="w-5 h-5 mr-2 text-pink-500" />
                 人数
               </h2>
               <div className="flex gap-2 overflow-x-auto pb-2">
@@ -526,8 +526,8 @@ export default function QuickMealPage() {
                     onClick={() => setPreferences(prev => ({ ...prev, servings: num }))}
                     className={`min-w-[60px] h-12 rounded-full font-bold transition-all ${
                       preferences.servings === num
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white/70 text-gray-600 hover:bg-blue-100'
+                        ? 'bg-pink-500 text-white'
+                        : 'bg-white/70 text-gray-600 hover:bg-pink-100'
                     }`}
                   >
                     {num}人
@@ -539,7 +539,7 @@ export default function QuickMealPage() {
             {/* 料理のスタイル */}
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
               <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <Heart className="w-5 h-5 mr-2 text-blue-500" />
+                <Heart className="w-5 h-5 mr-2 text-pink-500" />
                 料理のスタイル
               </h2>
               <div className="grid grid-cols-2 gap-3">
@@ -549,8 +549,8 @@ export default function QuickMealPage() {
                     onClick={() => setPreferences(prev => ({ ...prev, preferredStyle: style.value }))}
                     className={`p-4 rounded-xl border-2 transition-all ${
                       preferences.preferredStyle === style.value
-                        ? 'border-blue-400 bg-blue-50'
-                        : 'border-gray-200 bg-white hover:border-blue-200'
+                        ? 'border-pink-400 bg-pink-50'
+                        : 'border-gray-200 bg-white hover:border-pink-200'
                     }`}
                   >
                     <div className="text-2xl mb-2">{style.emoji}</div>
@@ -564,7 +564,7 @@ export default function QuickMealPage() {
             {/* 食事制限（オプション） */}
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
               <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <ChefHat className="w-5 h-5 mr-2 text-blue-500" />
+                <ChefHat className="w-5 h-5 mr-2 text-pink-500" />
                 食事制限（オプション）
               </h2>
               <div className="flex flex-wrap gap-2">
@@ -574,8 +574,8 @@ export default function QuickMealPage() {
                     onClick={() => handleDietaryRestrictionToggle(option.value)}
                     className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                       preferences.dietaryRestrictions.includes(option.value)
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white/70 text-gray-600 hover:bg-blue-100'
+                        ? 'bg-pink-500 text-white'
+                        : 'bg-white/70 text-gray-600 hover:bg-pink-100'
                     }`}
                   >
                     {option.emoji} {option.label}
@@ -592,7 +592,7 @@ export default function QuickMealPage() {
             )}
 
             {/* 生成ボタン */}
-            <div className="pt-4">
+            <div className="pt-4 pb-24 safe-area-inset">
               <button
                 onClick={handleGenerateMeal}
                 disabled={isGenerating}

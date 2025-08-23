@@ -72,7 +72,7 @@ export default function HomePage() {
               console.log('🎯 カメラ認識ボタンクリック - /camera-recognitionに遷移します');
               router.push('/camera-recognition');
             }}
-            className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
+            className="w-full bg-gradient-to-r from-pink-400 to-rose-400 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
           >
             <div className="flex items-center justify-between">
               <div className="text-left">
@@ -91,7 +91,7 @@ export default function HomePage() {
           {/* おまかせ献立 */}
           <button
             onClick={handleQuickMeal}
-            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
+            className="w-full bg-gradient-to-r from-purple-400 to-pink-400 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
           >
             <div className="flex items-center justify-between">
               <div className="text-left">
@@ -219,7 +219,7 @@ export default function HomePage() {
         </motion.div>
 
         {/* 底部スペース（ボトムナビのため） */}
-        <div className="h-20"></div>
+        <div className="h-24 safe-area-inset"></div>
       </div>
     </MobileLayout>
   );

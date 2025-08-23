@@ -575,8 +575,8 @@ export default function ResultPage() {
                 
                 {/* AI生成情報 */}
                 {formData.generatedSuggestion && (
-                  <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                    <span className="text-blue-600">🤖</span>
+                  <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-pink-100 text-pink-800 rounded-full text-sm">
+                    <span className="text-pink-600">🤖</span>
                     <span>AI生成</span>
                   </div>
                 )}
@@ -680,12 +680,14 @@ export default function ResultPage() {
                   <ShoppingCart className="w-5 h-5 text-green-500" />
                   買い物リスト
                 </h3>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {mealSuggestion?.shoppingList.slice(0, 8).map((item, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="w-4 h-4 text-gray-300" />
-                      <span className="text-gray-700">{item.ingredient}</span>
-                      <span className="text-gray-500 text-xs">{item.amount}</span>
+                    <div key={index} className="flex items-center justify-between gap-2 text-sm min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <CheckCircle2 className="w-4 h-4 text-gray-300 shrink-0" />
+                        <span className="text-gray-700 truncate">{item.ingredient}</span>
+                      </div>
+                      <span className="text-gray-500 text-xs shrink-0">{item.amount}</span>
                     </div>
                   ))}
                 </div>
@@ -704,17 +706,21 @@ export default function ResultPage() {
                 className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4"
               >
                 <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-blue-500" />
+                  <Clock className="w-5 h-5 text-pink-500" />
                   調理スケジュール
                 </h3>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {mealSuggestion?.cookingSchedule.slice(0, 6).map((schedule, index) => (
-                    <div key={index} className="flex items-center gap-3 text-sm">
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-mono min-w-[50px]">
-                        {schedule.time}
+                    <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="bg-pink-100 text-pink-800 px-2 py-1 rounded text-xs font-mono shrink-0">
+                          {schedule.time}
+                        </span>
+                        <span className="text-gray-700 flex-1 min-w-0 break-words">{schedule.task}</span>
+                      </div>
+                      <span className="text-gray-500 text-xs shrink-0 ml-12 sm:ml-0 truncate">
+                        {schedule.recipeName}
                       </span>
-                      <span className="text-gray-700 flex-1">{schedule.task}</span>
-                      <span className="text-gray-500 text-xs">{schedule.recipeName}</span>
                     </div>
                   ))}
                 </div>
@@ -752,7 +758,7 @@ export default function ResultPage() {
                   className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl font-semibold transition-all duration-200 shadow-lg ${
                     isRegenerating
                       ? 'bg-gray-200/90 backdrop-blur-sm text-gray-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 active:scale-95'
+                      : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 active:scale-95'
                   }`}
                 >
                   <RefreshCw className={`w-5 h-5 ${isRegenerating ? 'animate-spin' : ''}`} />
@@ -788,8 +794,8 @@ export default function ResultPage() {
                 </div>
               </motion.div>
 
-              {/* 底部スペース */}
-              <div className="h-8"></div>
+              {/* 底部スペース - ボトムナビゲーション用 */}
+              <div className="h-24 safe-area-inset"></div>
             </motion.div>
           )}
         </AnimatePresence>
