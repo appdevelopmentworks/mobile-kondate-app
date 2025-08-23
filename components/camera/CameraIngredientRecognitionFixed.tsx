@@ -203,14 +203,14 @@ export default function CameraIngredientRecognitionFixed({
       }, 500); // 少し遅延させてモーダルが完全に表示されてから
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, stream, selectedImage, startCamera]);
 
   // クリーンアップ
   useEffect(() => {
     return () => {
       stopCamera();
     };
-  }, []);
+  }, [stopCamera]);
 
   if (!isOpen) return null;
 

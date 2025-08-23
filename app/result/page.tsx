@@ -302,7 +302,7 @@ export default function ResultPage() {
 
     setMealSuggestion(suggestion);
     addToHistory(suggestion);
-  }, [formData.dishCount, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory]);
+  }, [formData.dishCount, formData.mealType, formData.servings, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory]);
 
   useEffect(() => {
     // AI生成済みの献立データがある場合はそれを使用

@@ -21,9 +21,13 @@
   }
 
   body {
-    @apply bg-gradient-to-br from-blue-500 via-cyan-400 to-blue-600 text-gray-900 min-h-screen;
+    @apply bg-gradient-to-br from-pink-200 via-purple-100 to-rose-100 text-gray-900 min-h-screen;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
     overscroll-behavior-y: contain;
+  }
+
+  .dark body {
+    @apply bg-gradient-to-br from-purple-900 via-pink-900 to-rose-900 text-white;
   }
 }
 
@@ -62,17 +66,25 @@
 
   /* カード */
   .card {
-    @apply bg-white/95 backdrop-blur-sm rounded-3xl shadow-lg p-6 transition-all duration-200 border border-white/20 text-gray-900;
+    @apply bg-white/95 backdrop-blur-sm rounded-3xl shadow-lg p-6 transition-all duration-200 border border-pink-100/30 text-gray-900;
+  }
+  
+  .dark .card {
+    @apply bg-gray-800/95 border-purple-700/30 text-white;
   }
 
   /* フォーム入力 */
   .input {
-    @apply touch-target w-full px-4 py-3 rounded-2xl border-2 border-white/30 focus:border-pink-400 focus:outline-none transition-colors text-base bg-white/90 backdrop-blur-sm text-gray-900 placeholder-gray-500;
+    @apply touch-target w-full px-4 py-3 rounded-2xl border-2 border-pink-200/40 focus:border-pink-400 focus:outline-none transition-colors text-base bg-white/90 backdrop-blur-sm text-gray-900 placeholder-gray-500;
+  }
+  
+  .dark .input {
+    @apply bg-gray-800/90 border-purple-700/30 text-white placeholder-gray-400 focus:border-pink-500;
   }
 
   /* チップ選択 */
   .chip {
-    @apply inline-flex items-center px-4 py-2 rounded-full bg-white/90 backdrop-blur-sm text-gray-700 transition-all duration-200 border border-white/40;
+    @apply inline-flex items-center px-4 py-2 rounded-full bg-white/90 backdrop-blur-sm text-gray-700 transition-all duration-200 border border-pink-200/40;
   }
 
   .chip-selected {
@@ -99,15 +111,27 @@
 
   /* ボトムナビゲーション */
   .bottom-nav {
-    @apply fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-white/30 px-4 py-2 flex justify-around items-center z-50;
+    @apply fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-pink-200/30 px-4 py-2 flex justify-around items-center z-50;
+  }
+  
+  .dark .bottom-nav {
+    @apply bg-gray-900/95 border-purple-700/30;
   }
 
   .bottom-nav-item {
     @apply flex flex-col items-center p-2 text-gray-600 transition-colors;
   }
+  
+  .dark .bottom-nav-item {
+    @apply text-gray-400;
+  }
 
   .bottom-nav-item-active {
     @apply text-pink-700;
+  }
+  
+  .dark .bottom-nav-item-active {
+    @apply text-pink-400;
   }
 
   /* アニメーション */
@@ -146,6 +170,52 @@
   /* セーフエリア対応 */
   .safe-area-inset {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* 改善されたフィードバック効果 */
+  .feedback-press {
+    @apply active:scale-95 active:brightness-95 transition-all duration-150;
+  }
+
+  /* グラデーション背景の強化 */
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-lg;
+  }
+
+  /* スケルトンローディング */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+
+  .skeleton-text {
+    @apply skeleton h-4 w-3/4 mb-2;
+  }
+
+  .skeleton-title {
+    @apply skeleton h-6 w-1/2 mb-4;
+  }
+
+  /* 改善されたアニメーション */
+  .bounce-in {
+    animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes bounceIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.3);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+    70% {
+      transform: scale(0.98);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 }
 

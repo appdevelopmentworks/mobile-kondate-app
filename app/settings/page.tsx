@@ -29,6 +29,10 @@ import {
 import { useSettingsStore, useApiKeyStore } from '@/lib/settings-store';
 import { checkAIProviderStatus } from '@/lib/meal-generation';
 import { testProviderConnection, testMealGeneration, testImageRecognition, APITestResult } from '@/lib/api/api-test';
+import ApiTestPanel from '@/components/settings/ApiTestPanel';
+import NotificationSettings from '@/components/settings/NotificationSettings';
+import CacheManager from '@/components/settings/CacheManager';
+import UsageStatistics from '@/components/settings/UsageStatistics';
 
 export default function SettingsPage() {
   const {
@@ -83,6 +87,23 @@ export default function SettingsPage() {
   const [preferredProviders, setPreferredProviders] = useState({
     mealGeneration: '',
     imageRecognition: '',
+  });
+
+  // 新機能の表示状態
+  const [showApiTestPanel, setShowApiTestPanel] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [showCacheManager, setShowCacheManager] = useState(false);
+  const [showUsageStats, setShowUsageStats] = useState(false);
+
+  // 通知設定
+  const [notificationSettings, setNotificationSettings] = useState({
+    enabled: notifications,
+    mealReminders: true,
+    favoriteUpdates: false,
+    weeklyPlanning: true,
+    soundEnabled: true,
+    vibrationEnabled: true,
+    reminderTime: '18:00',
   });
 
   // 初期化時にAPIキーを読み込み
@@ -244,6 +265,58 @@ export default function SettingsPage() {
     }
   };
 
+  // API テスト関数
+  const handleTestProvider = async (provider: string, testType: 'connection' | 'meal' | 'vision') => {
+    try {
+      // APIキーを取得
+      const apiKey = getApiKey(provider as any);
+      if (!apiKey) {
+        return {
+          success: false,
+          message: 'APIキーが設定されていません',
+          responseTime: 0
+        };
+      }
+
+      switch (testType) {
+        case 'connection':
+          const result = await testProviderConnection(provider, apiKey);
+          return {
+            success: result.success,
+            message: result.error || (result.success ? '接続成功' : '接続失敗'),
+            responseTime: result.responseTime || 0
+          };
+        case 'meal':
+          const mealResult = await testMealGeneration(provider);
+          return {
+            success: mealResult.success,
+            message: mealResult.error || (mealResult.success ? '献立生成成功' : '献立生成失敗'),
+            responseTime: 0 // testMealGeneration doesn't return responseTime
+          };
+        case 'vision':
+          const visionResult = await testImageRecognition(provider);
+          return {
+            success: visionResult.success,
+            message: visionResult.error || (visionResult.success ? '画像認識成功' : '画像認識失敗'),
+            responseTime: 0 // testImageRecognition doesn't return responseTime
+          };
+        default:
+          throw new Error('不明なテストタイプ');
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'テストに失敗しました'
+      };
+    }
+  };
+
+  // 通知設定更新
+  const handleNotificationSettingsUpdate = (newSettings: any) => {
+    setNotificationSettings(newSettings);
+    updateSettings({ notifications: newSettings.enabled });
+  };
+
   const settingsGroups = [
     {
       title: 'AI プロバイダー設定',
@@ -279,6 +352,13 @@ export default function SettingsPage() {
           action: () => setShowApiKeys(!showApiKeys),
           type: 'button' as const,
         },
+        {
+          icon: Zap,
+          label: 'API接続テスト',
+          value: 'プロバイダー動作確認',
+          action: () => setShowApiTestPanel(!showApiTestPanel),
+          type: 'button' as const,
+        },
       ]
     },
     {
@@ -290,6 +370,13 @@ export default function SettingsPage() {
           value: notifications,
           action: toggleNotifications,
           type: 'toggle' as const,
+        },
+        {
+          icon: Bell,
+          label: '通知設定詳細',
+          value: '通知カテゴリ・タイミング',
+          action: () => setShowNotificationSettings(!showNotificationSettings),
+          type: 'button' as const,
         },
         {
           icon: Moon,
@@ -347,6 +434,13 @@ export default function SettingsPage() {
       title: 'データ管理',
       items: [
         {
+          icon: Database,
+          label: 'キャッシュ管理',
+          value: 'ストレージ使用量確認',
+          action: () => setShowCacheManager(!showCacheManager),
+          type: 'button' as const,
+        },
+        {
           icon: Download,
           label: '設定をエクスポート',
           value: 'JSON形式で保存',
@@ -367,6 +461,18 @@ export default function SettingsPage() {
           action: handleResetSettings,
           type: 'button' as const,
           danger: true,
+        },
+      ]
+    },
+    {
+      title: '統計・分析',
+      items: [
+        {
+          icon: Activity,
+          label: '使用統計',
+          value: 'アプリの利用状況',
+          action: () => setShowUsageStats(!showUsageStats),
+          type: 'button' as const,
         },
       ]
     },
@@ -623,6 +729,35 @@ export default function SettingsPage() {
             </div>
           </motion.div>
         )}
+
+        {/* API テストパネル */}
+        {showApiTestPanel && (
+          <ApiTestPanel 
+            providers={Object.entries(apiKeyInputs)
+              .filter(([_, key]) => key)
+              .map(([provider, key]) => ({
+                key: provider,
+                name: getProviderName(provider),
+                hasKey: !!key,
+                capabilities: getProviderCapabilities(provider)
+              }))}
+            onTestProvider={handleTestProvider}
+          />
+        )}
+
+        {/* 通知設定詳細 */}
+        {showNotificationSettings && (
+          <NotificationSettings 
+            settings={notificationSettings}
+            onUpdate={handleNotificationSettingsUpdate}
+          />
+        )}
+
+        {/* キャッシュ管理 */}
+        {showCacheManager && <CacheManager />}
+
+        {/* 使用統計 */}
+        {showUsageStats && <UsageStatistics />}
 
         {/* 設定グループ */}
         {settingsGroups.map((group, groupIndex) => (

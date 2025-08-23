@@ -21,19 +21,19 @@ export default function Header({
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-white/30">
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-pink-200/30 dark:border-purple-700/30 transition-colors duration-200">
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center gap-2">
           {showBack && (
             <button
               onClick={onBack || (() => router.back())}
-              className="touch-target p-2 -ml-2 rounded-lg active:bg-white/20 transition-colors"
+              className="touch-target p-2 -ml-2 rounded-lg active:bg-white/20 dark:active:bg-gray-800/20 transition-colors"
               aria-label="戻る"
             >
-              <ChevronLeft className="w-6 h-6 text-gray-700" />
+              <ChevronLeft className="w-6 h-6 text-gray-700 dark:text-gray-300" />
             </button>
           )}
-          <h1 className="text-xl font-bold text-gray-800">
+          <h1 className="text-xl font-bold text-gray-800 dark:text-white">
             {title}
           </h1>
         </div>
@@ -41,10 +41,10 @@ export default function Header({
         {showMenu && (
           <button
             onClick={onMenuClick}
-            className="touch-target p-2 -mr-2 rounded-lg active:bg-white/20 transition-colors"
+            className="touch-target p-2 -mr-2 rounded-lg active:bg-white/20 dark:active:bg-gray-800/20 transition-colors"
             aria-label="メニュー"
           >
-            <Menu className="w-6 h-6 text-gray-700" />
+            <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </button>
         )}
       </div>

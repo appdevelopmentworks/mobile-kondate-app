@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useMealStore } from '@/lib/store';
 import { AIServiceManager } from '@/lib/api/ai-service-manager';
-import { useApiKeyStore } from '@/lib/settings-store';
+import { useApiKeyStore, useSettingsStore } from '@/lib/settings-store';
 import MobileLayout from '@/components/layout/MobileLayout';
 
 interface GeneratedMeal {
@@ -44,28 +44,15 @@ export default function GeneratePage() {
   const searchParams = useSearchParams();
   const { addMeal } = useMealStore();
   const apiKeyStore = useApiKeyStore();
+  const { defaultServings, defaultCookingTime } = useSettingsStore();
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedMeal, setGeneratedMeal] = useState<GeneratedMeal | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recognizedIngredients, setRecognizedIngredients] = useState<string[]>([]);
 
-  // URL パラメータから食材を取得
-  useEffect(() => {
-    const ingredientsParam = searchParams.get('ingredients');
-    if (ingredientsParam) {
-      const ingredients = decodeURIComponent(ingredientsParam).split(',');
-      setRecognizedIngredients(ingredients);
-      
-      // 自動で献立生成を開始
-      generateMeal(ingredients);
-    } else {
-      // 食材が指定されていない場合はホームに戻る
-      router.push('/');
-    }
-  }, [searchParams, router]);
-
-  const generateMeal = async (ingredients: string[]) => {
+  // generateMeal関数をuseCallbackでメモ化
+  const generateMeal = useCallback(async (ingredients: string[]) => {
     if (ingredients.length === 0) return;
 
     setIsGenerating(true);
@@ -81,6 +68,8 @@ export default function GeneratePage() {
       const prompt = `
 以下の食材を使って、美味しい献立を提案してください：
 食材: ${ingredients.join(', ')}
+人数: ${defaultServings}人分
+希望調理時間: 約${defaultCookingTime}分
 
 以下のJSON形式で回答してください：
 {
@@ -99,12 +88,13 @@ export default function GeneratePage() {
   ],
   "totalTime": 総調理時間（分）,
   "totalCalories": 総カロリー,
-  "servings": 何人分,
+  "servings": ${defaultServings},
   "tips": ["調理のコツやアドバイス"]
 }
 
 ※ 指定された食材を中心に使い、一般的な調味料や基本食材は適宜追加してください
 ※ 実際に作りやすく、栄養バランスの良い献立を提案してください
+※ 調理時間は希望時間（${defaultCookingTime}分）を目安にしてください
 `;
 
       const result = await aiService.generateMealPlan({
@@ -147,7 +137,22 @@ export default function GeneratePage() {
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [apiKeyStore, defaultServings, defaultCookingTime]);
+
+  // URL パラメータから食材を取得
+  useEffect(() => {
+    const ingredientsParam = searchParams.get('ingredients');
+    if (ingredientsParam) {
+      const ingredients = decodeURIComponent(ingredientsParam).split(',');
+      setRecognizedIngredients(ingredients);
+      
+      // 自動で献立生成を開始
+      generateMeal(ingredients);
+    } else {
+      // 食材が指定されていない場合はホームに戻る
+      router.push('/');
+    }
+  }, [searchParams, router, generateMeal]);
 
   const handleSaveMeal = () => {
     if (generatedMeal) {

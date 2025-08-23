@@ -424,10 +424,10 @@ export default function QuickMealPage() {
     <MobileLayout 
       title="おまかせ献立" 
       showBack={true} 
-      showBottomNav={false}
+      showBottomNav={true}
       onBack={() => router.push('/')}
     >
-      <div className="min-h-screen bg-gradient-to-br from-blue-500 via-cyan-400 to-blue-600 p-4">
+      <div className="min-h-screen p-4">
         <div className="max-w-md mx-auto">
           {/* 説明セクション */}
           <div className="text-center mb-8 bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">

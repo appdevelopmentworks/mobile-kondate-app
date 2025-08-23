@@ -124,7 +124,7 @@ export default function SimpleCameraTest({ isOpen, onClose }: SimpleCameraTestPr
     return () => {
       stopCamera();
     };
-  }, []);
+  }, [stopCamera]);
 
   if (!isOpen) return null;
 

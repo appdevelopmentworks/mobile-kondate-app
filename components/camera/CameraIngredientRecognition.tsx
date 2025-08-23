@@ -176,6 +176,31 @@ export default function CameraIngredientRecognition({
     }
   }, [stream]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // モーダルを閉じる
+  const handleClose = useCallback(() => {
+    stopCamera();
+    setSelectedImage(null);
+    setRecognitionResult(null);
+    setError(null);
+    setIsProcessing(false);
+    onClose();
+  }, [stopCamera, onClose]);
+
+  // 画像を食材認識APIに送信
+  const processImage = useCallback(async (base64: string) => {
+    try {
+      setRecognitionResult(null);
+      
+      // 画像データを直接親コンポーネントに送信
+      onIngredientsRecognized(base64);
+      handleClose();
+      
+    } catch (err) {
+      setError('食材認識処理中にエラーが発生しました');
+      console.error('Recognition error:', err);
+    }
+  }, [onIngredientsRecognized, handleClose]);
+
   // 写真撮影
   const takePhoto = useCallback(async () => {
     if (!stream || !videoRef.current) {
@@ -216,7 +241,7 @@ export default function CameraIngredientRecognition({
     } finally {
       setIsProcessing(false);
     }
-  }, [stream, videoRef]);
+  }, [stream, videoRef, processImage]);
 
   // 画像ファイル選択
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,22 +269,7 @@ export default function CameraIngredientRecognition({
     } finally {
       setIsProcessing(false);
     }
-  }, []);
-
-  // 画像を食材認識APIに送信
-  const processImage = useCallback(async (base64: string) => {
-    try {
-      setRecognitionResult(null);
-      
-      // 画像データを直接親コンポーネントに送信
-      onIngredientsRecognized(base64);
-      handleClose();
-      
-    } catch (err) {
-      setError('食材認識処理中にエラーが発生しました');
-      console.error('Recognition error:', err);
-    }
-  }, [onIngredientsRecognized]);
+  }, [processImage]);
 
   // 認識された食材を確定（この関数は使われなくなった）
   const confirmIngredients = useCallback(() => {
@@ -268,17 +278,7 @@ export default function CameraIngredientRecognition({
       onIngredientsRecognized(ingredientNames);
       handleClose();
     }
-  }, [recognitionResult, onIngredientsRecognized]);
-
-  // モーダルを閉じる
-  const handleClose = useCallback(() => {
-    stopCamera();
-    setSelectedImage(null);
-    setRecognitionResult(null);
-    setError(null);
-    setIsProcessing(false);
-    onClose();
-  }, [stopCamera, onClose]);
+  }, [recognitionResult, onIngredientsRecognized, handleClose]);
 
   // 再撮影
   const retakePhoto = useCallback(() => {
