@@ -20,7 +20,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { sampleRecipes } from '../../lib/sample-data';
-import type { MealSuggestion, Recipe } from '../../lib/types';
+import type { MealSuggestion, Recipe, MealPreference } from '../../lib/types';
 import { generateMeals, checkMealGenerationStatus } from '../../lib/meal-generation';
 
 // 献立のバリエーションパターンを定義
@@ -158,111 +158,52 @@ export default function ResultPage() {
       const apiStatus = checkMealGenerationStatus();
       console.log('🔍 Groq API状態:', apiStatus);
       
-      // フォームデータからGroq APIリクエストを構築
-      const mealRequest = {
+      // フォームデータをMealPreference型に変換
+      const mealRequest: MealPreference = {
         ingredients: formData.ingredients || ['野菜', '肉類', '調味料'],
         servings: defaultServings,
-        cookingTime: formData.cookingTime === 'unlimited' ? 60 : Number(formData.cookingTime) || 45,
+        cookingTime: formData.cookingTime === 'unlimited' ? 'unlimited' : (formData.cookingTime || '45'),
         mealType: formData.mealType === 'breakfast' ? 'breakfast' as const :
                  formData.mealType === 'lunch' ? 'lunch' as const : 'dinner' as const,
-        dietaryRestrictions: formData.avoidIngredients || [],
-        preferences: [
-          formData.nutritionBalance === 'protein' ? 'タンパク質を多めに' :
-          formData.nutritionBalance === 'vegetable' ? '野菜をたっぷり' :
-          formData.nutritionBalance === 'light' ? 'あっさりと' : 'バランスよく'
-        ],
+        avoidIngredients: formData.avoidIngredients || [],
+        allergies: formData.allergies || [],
+        nutritionBalance: formData.nutritionBalance === 'protein' ? 'protein' :
+                         formData.nutritionBalance === 'vegetable' ? 'vegetable' :
+                         formData.nutritionBalance === 'light' ? 'light' : 'balanced',
         difficulty: 'medium' as const,
-        cuisine: '和洋中問わず'
+        dishCount: formData.dishCount || 3,
+        budget: formData.budget === 'economy' ? 'economy' :
+                formData.budget === 'premium' ? 'premium' : 'standard'
       };
       
       console.log('📡 Groq APIリクエスト詳細:', mealRequest);
       
-      // **実際にGroq APIを呼び出し**
-      const apiResponse = await generateMeals(mealRequest);
+      // **実際にAI統合システムを呼び出し**
+      const { generateMealSuggestion: aiGenerateMealSuggestion } = await import('../../lib/meal-generation');
+      const apiResponse = await aiGenerateMealSuggestion(mealRequest);
       
-      console.log('📊 Groq APIレスポンス:', {
+      console.log('📊 AI APIレスポンス:', {
         success: apiResponse.success,
-        source: apiResponse.source,
-        mealsCount: apiResponse.meals?.length || 0,
+        provider: apiResponse.provider,
+        hasSuggestion: !!apiResponse.suggestion,
         error: apiResponse.error
       });
       
-      if (apiResponse.success && apiResponse.meals && apiResponse.meals.length > 0) {
-        // ✅ Groq API成功時の処理
-        console.log('✅ Groq API献立生成成功!');
+      if (apiResponse.success && apiResponse.suggestion) {
+        // ✅ AI生成成功時の処理
+        console.log('✅ AI献立生成成功!');
         
-        // Groq APIの結果をRecipe形式に変換
-        const apiRecipes: Recipe[] = apiResponse.meals.map((meal, index) => ({
-          id: `groq-meal-${Date.now()}-${index}`,
-          name: meal.name,
-          description: `${meal.category} - ${meal.difficulty}レベル`,
-          ingredients: meal.ingredients.map((ing, i) => ({
-            name: ing,
-            amount: '適量',
-            unit: ''
-          })),
-          steps: meal.instructions.map((instruction, i) => ({
-            order: i + 1,
-            description: instruction,
-            duration: Math.ceil(meal.cookingTime / meal.instructions.length),
-            temperature: undefined,
-            tips: meal.tips && meal.tips[i] ? meal.tips[i] : undefined
-          })),
-          cookingTime: meal.cookingTime,
-          difficulty: meal.difficulty as 'easy' | 'medium' | 'hard',
-          servings: meal.servings,
-          nutrition: {
-            calories: Math.round(300 + Math.random() * 200),
-            protein: Math.round(15 + Math.random() * 15),
-            carbohydrates: Math.round(30 + Math.random() * 20),
-            fat: Math.round(10 + Math.random() * 15),
-            fiber: Math.round(2 + Math.random() * 3),
-            salt: Math.round(1 + Math.random() * 2)
-          },
-          tags: [meal.category, meal.difficulty, apiResponse.source],
-          imageUrl: '',
-          createdAt: new Date(),
-          category: (() => {
-            const cat = meal.category;
-            switch (cat) {
-              case 'main': return 'main';
-              case 'side': return 'side';
-              case 'soup': return 'soup';
-              case 'rice': return 'main'; // ご飯ものは主菜として扱う
-              case 'dessert': return 'other'; // デザートはその他として扱う
-              default: return 'other';
-            }
-          })()
-        }));
+        // プロバイダー情報を追加
+        const providerEmoji = apiResponse.provider === 'Gemini' ? '💎' : 
+                             apiResponse.provider === 'Groq' ? '🚀' :
+                             apiResponse.provider === 'OpenAI' ? '🧠' :
+                             apiResponse.provider === 'Anthropic' ? '🤖' : '✨';
         
-        // 総カロリーと調理時間を計算
-        const totalCalories = apiRecipes.reduce((sum, recipe) => sum + recipe.nutrition.calories, 0);
-        // デフォルト設定の調理時間を使用
-        const totalTime = defaultCookingTime === 'unlimited' ? 90 : parseInt(defaultCookingTime);
+        apiResponse.suggestion.title = `${providerEmoji} ${apiResponse.suggestion.title}`;
         
-        // 買い物リストを生成
-        const shoppingList = generateShoppingList(apiRecipes);
-        
-        // 調理スケジュールを生成
-        const cookingSchedule = generateCookingSchedule(apiRecipes);
-        
-        const suggestion: MealSuggestion = {
-          id: `groq-meal-${Date.now()}`,
-          title: `🤖 ${getMealTitle()}`,
-          description: `${getMealDescription()} (AI生成)`,
-          recipes: apiRecipes,
-          totalTime,
-          totalCalories,
-          servings: defaultServings,
-          tags: ['AI生成', formData.mealType || '夕食'],
-          shoppingList,
-          cookingSchedule,
-          createdAt: new Date(),
-        };
-        
-        setMealSuggestion(suggestion);
-        addToHistory(suggestion);
-        console.log('🎉 Groq AI献立設定完了!');
+        setMealSuggestion(apiResponse.suggestion);
+        addToHistory(apiResponse.suggestion);
+        console.log('🎉 AI献立設定完了!');
         
       } else {
         // ⚠️ Groq API失敗時の処理
@@ -274,7 +215,7 @@ export default function ResultPage() {
           console.log('🔄 [結果画面] 代替プロバイダーで再試行...');
           try {
             const { generateMealSuggestion: altGenerateMealSuggestion } = await import('../../lib/meal-generation');
-            const altResult = await altGenerateMealSuggestion(mealRequest, null); // auto選択
+            const altResult = await altGenerateMealSuggestion(mealRequest, undefined); // auto選択
             
             if (altResult.success && altResult.suggestion) {
               console.log('✅ [結果画面] 代替プロバイダーで成功!');
@@ -621,7 +562,7 @@ export default function ResultPage() {
           console.log('🔄 [結果画面] 別のプロバイダーで再試行中...');
           try {
             // 代替プロバイダーで再試行（プロバイダーをnullにしてauto選択させる）
-            const retryResult = await generateMealSuggestion(mealPreferences, null);
+            const retryResult = await generateMealSuggestion(mealPreferences, undefined);
             if (retryResult.success && retryResult.suggestion) {
               console.log('✅ [結果画面] 再試行成功!');
               const retryProviderEmoji = retryResult.provider === 'Gemini' ? '💎' : 
@@ -654,10 +595,8 @@ export default function ResultPage() {
     } catch (error) {
       console.error('❌ [結果画面] 新しい献立生成エラー:', error);
       
-      // APIキーがある場合はモックデータではなくエラー処理を優先
-      if (hasAnyApiKey) {
-        console.warn('⚠️ [結果画面] APIキーがあるのにエラーが発生。モックデータで代替します。');
-      }
+      // エラーが発生した場合の処理
+      console.warn('⚠️ [結果画面] エラーが発生。モックデータで代替します。');
       
       // エラー時はモックデータで代替
       generateMockMealSuggestion();
