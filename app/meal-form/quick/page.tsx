@@ -314,18 +314,19 @@ export default function QuickMealPage() {
         timestamp: new Date().toISOString()
       });
       
-      if (!hasAnyApiKey) {
-        console.warn('⚠️ APIキーが設定されていません。モックデータで生成します。');
-        const mealData = generateLocalMealSuggestion();
-        addToHistory(mealData);
-        router.push('/result');
-        return;
-      }
-      
       // 食材をスタイルに応じて推定
       const mealType = preferences.mealType === 'auto' 
         ? getCurrentTimeBasedMealType() 
         : preferences.mealType;
+      
+      if (!hasAnyApiKey) {
+        console.warn('⚠️ APIキーが設定されていません。モックデータで生成します。');
+        const tempMockData = generateLocalMealSuggestion();
+        tempMockData.title = `🎭 サンプル${tempMockData.title}`;
+        addToHistory(tempMockData);
+        router.push('/result');
+        return;
+      }
       
       // AI献立生成リクエストを構築
       const mealPreferences = {

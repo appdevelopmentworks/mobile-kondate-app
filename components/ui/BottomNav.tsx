@@ -35,16 +35,15 @@ export default function BottomNav() {
         const Icon = item.icon;
         const active = isActive(item.href);
         const isCameraButton = item.href === '/camera';
-        const isFavoritesButton = item.href === '/favorites';
         
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`bottom-nav-item group relative ${active ? 'bottom-nav-item-active' : ''} transition-all duration-200 hover:scale-105 ${isCameraButton || isFavoritesButton ? 'px-3' : ''}`}
+            className={`bottom-nav-item group relative ${active ? 'bottom-nav-item-active' : ''} transition-all duration-200 hover:scale-105 ${isCameraButton ? 'px-3' : ''}`}
           >
             {/* アクティブ状態のインジケーター */}
-            {active && !isCameraButton && !isFavoritesButton && (
+            {active && !isCameraButton && (
               <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-pink-600 rounded-full" />
             )}
             
@@ -69,29 +68,6 @@ export default function BottomNav() {
                 
                 {/* カメララベル */}
                 <span className={`text-xs font-medium ${active ? 'font-bold text-pink-700 dark:text-pink-400' : 'font-semibold text-pink-600 dark:text-pink-500'} transition-all duration-200`}>
-                  {item.label}
-                </span>
-              </div>
-            ) : isFavoritesButton ? (
-              <div className="flex flex-col items-center">
-                {/* お気に入りボタンのコンテナ */}
-                <div className={`
-                  relative mb-1 p-2 rounded-full transition-all duration-300
-                  ${active 
-                    ? 'bg-gradient-to-br from-rose-500 to-pink-600 shadow-lg transform scale-110' 
-                    : 'bg-gradient-to-br from-rose-400 to-pink-500 shadow-md hover:shadow-lg'
-                  }
-                `}>
-                  <Icon className="w-6 h-6 text-white drop-shadow-sm" />
-                  
-                  {/* お気に入りボタンのパルス効果 */}
-                  {!active && (
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 animate-pulse opacity-20" />
-                  )}
-                </div>
-                
-                {/* お気に入りラベル */}
-                <span className={`text-xs font-medium ${active ? 'font-bold text-rose-700 dark:text-rose-400' : 'font-semibold text-rose-600 dark:text-rose-500'} transition-all duration-200`}>
                   {item.label}
                 </span>
               </div>
