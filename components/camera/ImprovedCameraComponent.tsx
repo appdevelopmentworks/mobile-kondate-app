@@ -68,6 +68,7 @@ export default function ImprovedCameraComponent({
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hasTriggeredRefresh = useRef(false);
 
 
   // カメラ設定
@@ -279,10 +280,11 @@ export default function ImprovedCameraComponent({
     }
   }, [isOpen, showTutorial, startCamera]);
 
-  // カメラ起動後にリフレッシュボタンを自動実行（showTutorial = falseの場合）
+  // カメラ起動後にリフレッシュボタンを自動実行（一回のみ、showTutorial = falseの場合）
   useEffect(() => {
-    if (!showTutorial && currentStep === 'camera' && stream && !isProcessing) {
-      console.log('📹 カメラストリーム検出、リフレッシュボタン自動実行');
+    if (!showTutorial && currentStep === 'camera' && stream && !isProcessing && !hasTriggeredRefresh.current) {
+      console.log('📹 カメラストリーム検出、リフレッシュボタン自動実行（一回のみ）');
+      hasTriggeredRefresh.current = true; // フラグを設定して重複実行を防止
       
       // カメラストリーム検出後、少し待ってからリフレッシュボタンと同じ動作を実行
       const autoRefreshTimer = setTimeout(() => {
@@ -361,6 +363,7 @@ export default function ImprovedCameraComponent({
   // モーダルクローズ
   const handleClose = useCallback(() => {
     stopCamera();
+    hasTriggeredRefresh.current = false; // リフレッシュフラグをリセット
     setCapturedImage(null);
     setRecognitionResult(null);
     setError(null);
