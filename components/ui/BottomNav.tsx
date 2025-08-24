@@ -1,18 +1,25 @@
 'use client';
 
-import { Home, Clock, Settings, Camera } from 'lucide-react';
+import { Home, Heart, Clock, Settings, Camera } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const navItems = [
-  { href: '/', icon: Home, label: 'ホーム' },
-  { href: '/camera', icon: Camera, label: 'カメラ' },
-  { href: '/history', icon: Clock, label: '履歴' },
-  { href: '/settings', icon: Settings, label: '設定' },
-];
-
 export default function BottomNav() {
   const pathname = usePathname();
+  
+  // カメラ機能が必要なページ
+  const cameraRequiredPages = ['/camera', '/camera-recognition', '/meal-form/3', '/ingredients'];
+  const showCameraButton = cameraRequiredPages.some(page => pathname.startsWith(page));
+  
+  // 動的にナビゲーションアイテムを生成
+  const navItems = [
+    { href: '/', icon: Home, label: 'ホーム' },
+    showCameraButton 
+      ? { href: '/camera', icon: Camera, label: 'カメラ' }
+      : { href: '/favorites', icon: Heart, label: 'お気に入り' },
+    { href: '/history', icon: Clock, label: '履歴' },
+    { href: '/settings', icon: Settings, label: '設定' },
+  ];
 
   // より厳密なアクティブ状態の判定
   const isActive = (href: string) => {
@@ -28,15 +35,16 @@ export default function BottomNav() {
         const Icon = item.icon;
         const active = isActive(item.href);
         const isCameraButton = item.href === '/camera';
+        const isFavoritesButton = item.href === '/favorites';
         
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`bottom-nav-item group relative ${active ? 'bottom-nav-item-active' : ''} transition-all duration-200 hover:scale-105 ${isCameraButton ? 'px-3' : ''}`}
+            className={`bottom-nav-item group relative ${active ? 'bottom-nav-item-active' : ''} transition-all duration-200 hover:scale-105 ${isCameraButton || isFavoritesButton ? 'px-3' : ''}`}
           >
             {/* アクティブ状態のインジケーター */}
-            {active && !isCameraButton && (
+            {active && !isCameraButton && !isFavoritesButton && (
               <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-pink-600 rounded-full" />
             )}
             
@@ -61,6 +69,29 @@ export default function BottomNav() {
                 
                 {/* カメララベル */}
                 <span className={`text-xs font-medium ${active ? 'font-bold text-pink-700 dark:text-pink-400' : 'font-semibold text-pink-600 dark:text-pink-500'} transition-all duration-200`}>
+                  {item.label}
+                </span>
+              </div>
+            ) : isFavoritesButton ? (
+              <div className="flex flex-col items-center">
+                {/* お気に入りボタンのコンテナ */}
+                <div className={`
+                  relative mb-1 p-2 rounded-full transition-all duration-300
+                  ${active 
+                    ? 'bg-gradient-to-br from-rose-500 to-pink-600 shadow-lg transform scale-110' 
+                    : 'bg-gradient-to-br from-rose-400 to-pink-500 shadow-md hover:shadow-lg'
+                  }
+                `}>
+                  <Icon className="w-6 h-6 text-white drop-shadow-sm" />
+                  
+                  {/* お気に入りボタンのパルス効果 */}
+                  {!active && (
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 animate-pulse opacity-20" />
+                  )}
+                </div>
+                
+                {/* お気に入りラベル */}
+                <span className={`text-xs font-medium ${active ? 'font-bold text-rose-700 dark:text-rose-400' : 'font-semibold text-rose-600 dark:text-rose-500'} transition-all duration-200`}>
                   {item.label}
                 </span>
               </div>
