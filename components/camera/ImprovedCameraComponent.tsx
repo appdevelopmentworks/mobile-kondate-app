@@ -188,8 +188,24 @@ export default function ImprovedCameraComponent({
 
   // 写真撮影（改善版）
   const takePhoto = useCallback(async () => {
+    console.log('🎬 takePhoto実行開始:', {
+      hasStream: !!stream,
+      hasVideo: !!videoRef.current,
+      streamActive: stream?.active,
+      videoReadyState: videoRef.current?.readyState,
+      videoWidth: videoRef.current?.videoWidth
+    });
+
     if (!stream || !videoRef.current) {
+      console.error('❌ ストリームまたはビデオ要素が無効');
       setError('カメラが利用できません');
+      return;
+    }
+
+    // ストリームが非アクティブの場合
+    if (!stream.active) {
+      console.error('❌ ストリームが非アクティブ');
+      setError('カメラ接続が失われました。再度お試しください。');
       return;
     }
 
@@ -270,61 +286,63 @@ export default function ImprovedCameraComponent({
     }
   }, [isOpen, showTutorial, startCamera]);
 
-  // カメラ起動後、自動リフレッシュと撮影モードのタイマー（showTutorial = falseの場合）
+  // カメラ起動後、自動撮影モードのタイマー（showTutorial = falseの場合）
   useEffect(() => {
     if (!showTutorial && currentStep === 'camera' && stream && !isProcessing && autoShootCountdown === null && !autoShootTimerRef.current) {
-      console.log('📹 カメラストリーム検出、リフレッシュ実行中...');
+      console.log('📹 カメラストリーム検出、撮影準備中...');
       
-      // カメラ起動後、少し待ってからリフレッシュを実行（インカメラボタンと同じ動作）
+      // カメラストリームが安定するまで少し待ってから撮影タイマーを開始
       setTimeout(() => {
-        console.log('🔄 自動リフレッシュ実行');
-        startCamera(); // リフレッシュボタンと同じ動作
-        
-        // リフレッシュ後、さらに少し待ってから撮影タイマーを開始
-        setTimeout(() => {
-          const checkVideoReady = () => {
-            const video = videoRef.current;
-            if (video && video.readyState >= 2 && video.videoWidth > 0) {
-              console.log('🎯 自動撮影タイマー開始 - カメラ準備完了:', {
-                readyState: video.readyState,
-                videoWidth: video.videoWidth,
-                videoHeight: video.videoHeight
-              });
-              
-              // カメラ準備完了後、2秒のカウントダウンを開始
-              setAutoShootCountdown(2);
-              
-              const countdownInterval = setInterval(() => {
-                setAutoShootCountdown(prev => {
-                  if (prev === null || prev <= 1) {
-                    clearInterval(countdownInterval);
-                    autoShootTimerRef.current = null;
-                    // カウントダウン終了、撮影実行
-                    setTimeout(() => {
-                      console.log('📸 自動撮影実行');
+        const checkVideoReady = () => {
+          const video = videoRef.current;
+          if (video && video.readyState >= 2 && video.videoWidth > 0) {
+            console.log('🎯 自動撮影タイマー開始 - カメラ準備完了:', {
+              readyState: video.readyState,
+              videoWidth: video.videoWidth,
+              videoHeight: video.videoHeight
+            });
+            
+            // カメラ準備完了後、2秒のカウントダウンを開始
+            setAutoShootCountdown(2);
+            
+            const countdownInterval = setInterval(() => {
+              setAutoShootCountdown(prev => {
+                if (prev === null || prev <= 1) {
+                  clearInterval(countdownInterval);
+                  autoShootTimerRef.current = null;
+                  // カウントダウン終了、撮影実行
+                  setTimeout(() => {
+                    console.log('📸 自動撮影実行');
+                    // ストリーム状態を再度確認してから撮影
+                    const currentStream = stream;
+                    const currentVideo = videoRef.current;
+                    if (currentStream && currentVideo && currentVideo.readyState >= 2) {
                       takePhoto();
-                      setAutoShootCountdown(null);
-                    }, 100);
-                    return 0;
-                  }
-                  return prev - 1;
-                });
-              }, 1000);
-
-              autoShootTimerRef.current = countdownInterval;
-            } else {
-              // ビデオがまだ準備できていない場合、少し待ってから再チェック
-              console.log('⏳ カメラ準備待機中...', {
-                readyState: video?.readyState,
-                videoWidth: video?.videoWidth
+                    } else {
+                      console.warn('⚠️ 撮影時にストリーム状態が無効');
+                      setError('カメラの準備中です。しばらくお待ちください。');
+                    }
+                    setAutoShootCountdown(null);
+                  }, 100);
+                  return 0;
+                }
+                return prev - 1;
               });
-              setTimeout(checkVideoReady, 500);
-            }
-          };
+            }, 1000);
 
-          checkVideoReady();
-        }, 1000); // リフレッシュ後1秒待機
-      }, 500); // ストリーム検出後0.5秒待機
+            autoShootTimerRef.current = countdownInterval;
+          } else {
+            // ビデオがまだ準備できていない場合、少し待ってから再チェック
+            console.log('⏳ カメラ準備待機中...', {
+              readyState: video?.readyState,
+              videoWidth: video?.videoWidth
+            });
+            setTimeout(checkVideoReady, 500);
+          }
+        };
+
+        checkVideoReady();
+      }, 1500); // ストリーム検出後1.5秒待機（安定化のため）
 
       return () => {
         console.log('🛑 自動撮影タイマークリーンアップ');
@@ -335,7 +353,7 @@ export default function ImprovedCameraComponent({
         setAutoShootCountdown(null);
       };
     }
-  }, [currentStep, stream, isProcessing, showTutorial, startCamera]);
+  }, [currentStep, stream, isProcessing, showTutorial]);
 
   // カメラ停止
   const stopCamera = useCallback(() => {
