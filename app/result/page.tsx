@@ -149,7 +149,7 @@ export default function ResultPage() {
     return schedule;
   }, []);
 
-  const generateMealSuggestion = useCallback(async () => {
+  const generateMealSuggestionLegacy = useCallback(async () => {
     console.log('🚀 「献立完成！」画面で献立生成開始...');
     console.log('📋 フォームデータ:', formData);
     
@@ -265,14 +265,42 @@ export default function ResultPage() {
         console.log('🎉 Groq AI献立設定完了!');
         
       } else {
-        // ⚠️ Groq API失敗時はモックデータにフォールバック
-        console.warn('⚠️ Groq API失敗、モックデータにフォールバック:', apiResponse.error);
+        // ⚠️ Groq API失敗時の処理
+        console.warn('⚠️ [結果画面] 初期AI生成失敗:', apiResponse.error);
+        
+        // APIが利用可能な場合は、代替プロバイダーで再試行
+        const apiStatus = await checkMealGenerationStatus();
+        if (apiStatus.groqApiAvailable || apiStatus.status === 'ready') {
+          console.log('🔄 [結果画面] 代替プロバイダーで再試行...');
+          try {
+            const { generateMealSuggestion: altGenerateMealSuggestion } = await import('../../lib/meal-generation');
+            const altResult = await altGenerateMealSuggestion(mealRequest, null); // auto選択
+            
+            if (altResult.success && altResult.suggestion) {
+              console.log('✅ [結果画面] 代替プロバイダーで成功!');
+              const altProviderEmoji = altResult.provider === 'Gemini' ? '💎' : 
+                                     altResult.provider === 'Groq' ? '🚀' :
+                                     altResult.provider === 'OpenAI' ? '🧠' :
+                                     altResult.provider === 'Anthropic' ? '🤖' : '✨';
+              
+              altResult.suggestion.title = `${altProviderEmoji} ${altResult.suggestion.title}`;
+              setMealSuggestion(altResult.suggestion);
+              addToHistory(altResult.suggestion);
+              return;
+            }
+          } catch (altError) {
+            console.error('❌ [結果画面] 代替プロバイダーも失敗:', altError);
+          }
+        }
+        
+        // 最後の手段としてモックデータ
+        console.warn('⚠️ [結果画面] 全てのAI試行が失敗、モックデータで代替');
         generateMockMealSuggestion();
       }
       
     } catch (error) {
       // ❌ エラー時はモックデータにフォールバック
-      console.error('❌ 献立生成エラー:', error);
+      console.error('❌ [結果画面] 初期献立生成エラー:', error);
       generateMockMealSuggestion();
     } finally {
       setLoading(false);
@@ -334,11 +362,81 @@ export default function ResultPage() {
       addToHistory(formData.generatedSuggestion);
       setIsRegenerating(false);
     } else {
-      // フォームデータに基づいて献立を生成
-      console.log('🔄 従来システムで献立生成を実行（モックデータ）');
-      generateMealSuggestion();
+      // フォームデータに基づいて献立を生成（新しいAI統合システムを使用）
+      console.log('🔄 [結果画面] 初期献立を新しいAI統合システムで生成');
+      
+      // 初期生成のため、専用の処理を実行
+      const initializeWithAI = async () => {
+        setIsRegenerating(true);
+        
+        try {
+          const { useApiKeyStore } = await import('../../lib/settings-store');
+          const { generateMealSuggestion: aiGenerateMealSuggestion } = await import('../../lib/meal-generation');
+          
+          const apiKeyStore = useApiKeyStore.getState();
+          const preferredProvider = apiKeyStore.getPreferredProvider('mealGeneration');
+          
+          const availableKeys = {
+            groqApiKey: apiKeyStore.getApiKey('groqApiKey'),
+            geminiApiKey: apiKeyStore.getApiKey('geminiApiKey'),
+            openaiApiKey: apiKeyStore.getApiKey('openaiApiKey'),
+            anthropicApiKey: apiKeyStore.getApiKey('anthropicApiKey'),
+            huggingfaceApiKey: apiKeyStore.getApiKey('huggingfaceApiKey'),
+            togetherApiKey: apiKeyStore.getApiKey('togetherApiKey'),
+          };
+          
+          const hasAnyApiKey = Object.values(availableKeys).some(key => !!key);
+          
+          if (!hasAnyApiKey) {
+            console.warn('⚠️ [結果画面-初期] APIキーが設定されていません。モックデータで生成します。');
+            generateMockMealSuggestion();
+            return;
+          }
+          
+          // AI献立生成リクエスト構築
+          const mealPreferences = {
+            ingredients: formData.ingredients || ['野菜', '肉類', '調味料'],
+            servings: defaultServings,
+            cookingTime: formData.cookingTime === 'unlimited' ? '60' : (formData.cookingTime || '45'),
+            mealType: formData.mealType || 'dinner',
+            avoidIngredients: formData.avoidIngredients || [],
+            allergies: formData.allergies || [],
+            nutritionBalance: formData.nutritionBalance || 'balanced',
+            difficulty: formData.difficulty || 'easy',
+            dishCount: formData.dishCount || 3,
+            budget: formData.budget || 'standard',
+          };
+          
+          console.log('📡 [結果画面-初期] AI生成リクエスト:', mealPreferences);
+          
+          const result = await aiGenerateMealSuggestion(mealPreferences, preferredProvider);
+          
+          if (result.success && result.suggestion) {
+            console.log('✅ [結果画面-初期] AI生成成功!');
+            const providerEmoji = result.provider === 'Gemini' ? '💎' : 
+                                 result.provider === 'Groq' ? '🚀' :
+                                 result.provider === 'OpenAI' ? '🧠' :
+                                 result.provider === 'Anthropic' ? '🤖' : '✨';
+            
+            result.suggestion.title = `${providerEmoji} ${result.suggestion.title}`;
+            setMealSuggestion(result.suggestion);
+            addToHistory(result.suggestion);
+          } else {
+            console.warn('⚠️ [結果画面-初期] AI生成失敗、モックデータで代替');
+            generateMockMealSuggestion();
+          }
+          
+        } catch (error) {
+          console.error('❌ [結果画面-初期] 生成エラー:', error);
+          generateMockMealSuggestion();
+        } finally {
+          setIsRegenerating(false);
+        }
+      };
+      
+      initializeWithAI();
     }
-  }, [formData.generatedSuggestion, generateMealSuggestion, addToHistory]);
+  }, [formData.generatedSuggestion, addToHistory, generateMockMealSuggestion, defaultServings, formData.ingredients, formData.cookingTime, formData.mealType, formData.avoidIngredients, formData.allergies, formData.nutritionBalance, formData.difficulty, formData.dishCount, formData.budget]);
 
   const handleToggleFavorite = () => {
     if (mealSuggestion) {
@@ -409,7 +507,7 @@ export default function ResultPage() {
       
       if (!hasAnyApiKey) {
         console.warn('⚠️ [結果画面] APIキーが設定されていません。モックデータで再生成します。');
-        generateMockMealSuggestion(); // 従来のモック生成にフォールバック
+        generateMockMealSuggestion();
         return;
       }
       
@@ -512,15 +610,57 @@ export default function ResultPage() {
         });
         
       } else {
-        console.warn('⚠️ API失敗、既存のサンプルから別のバリエーション生成');
-        // API失敗時は既存のロジックを使用
+        console.warn('⚠️ [結果画面] AI生成失敗。詳細:', {
+          error: result.error,
+          provider: result.provider,
+          hasApiKey: hasAnyApiKey
+        });
+        
+        // APIキーがあるのに失敗した場合は、別のプロバイダーで再試行
+        if (hasAnyApiKey) {
+          console.log('🔄 [結果画面] 別のプロバイダーで再試行中...');
+          try {
+            // 代替プロバイダーで再試行（プロバイダーをnullにしてauto選択させる）
+            const retryResult = await generateMealSuggestion(mealPreferences, null);
+            if (retryResult.success && retryResult.suggestion) {
+              console.log('✅ [結果画面] 再試行成功!');
+              const retryProviderEmoji = retryResult.provider === 'Gemini' ? '💎' : 
+                                       retryResult.provider === 'Groq' ? '🚀' :
+                                       retryResult.provider === 'OpenAI' ? '🧠' :
+                                       retryResult.provider === 'Anthropic' ? '🤖' : '✨';
+              
+              const retrySuggestion = {
+                ...retryResult.suggestion,
+                id: `retry-suggestion-${Date.now()}`,
+                title: `${retryProviderEmoji} ${randomVariation}${retryResult.suggestion.title}`,
+                description: `${retryResult.suggestion.description} (再試行成功)`,
+                createdAt: new Date(),
+              };
+              
+              setMealSuggestion(retrySuggestion);
+              addToHistory(retrySuggestion);
+              return;
+            }
+          } catch (retryError) {
+            console.error('❌ [結果画面] 再試行も失敗:', retryError);
+          }
+        }
+        
+        // 最後の手段としてモックデータを使用
+        console.warn('⚠️ [結果画面] 全てのAI試行が失敗、モックデータで代替');
         generateMockMealSuggestion();
       }
       
     } catch (error) {
-      console.error('❌ 新しい献立生成エラー:', error);
-      // エラー時は既存のロジックを使用
-      generateMealSuggestion();
+      console.error('❌ [結果画面] 新しい献立生成エラー:', error);
+      
+      // APIキーがある場合はモックデータではなくエラー処理を優先
+      if (hasAnyApiKey) {
+        console.warn('⚠️ [結果画面] APIキーがあるのにエラーが発生。モックデータで代替します。');
+      }
+      
+      // エラー時はモックデータで代替
+      generateMockMealSuggestion();
     } finally {
       setIsRegenerating(false);
     }
