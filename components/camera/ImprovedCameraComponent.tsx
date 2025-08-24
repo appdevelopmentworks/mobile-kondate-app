@@ -185,55 +185,6 @@ export default function ImprovedCameraComponent({
     }
   }, [getCameraConstraints, cameraQuality, handleCameraError]);
 
-  // チュートリアルをスキップしてカメラに直行する場合
-  useEffect(() => {
-    if (isOpen && !showTutorial) {
-      setCurrentStep('camera');
-      startCamera();
-    } else if (isOpen && showTutorial) {
-      setCurrentStep('tutorial');
-    }
-  }, [isOpen, showTutorial, startCamera]);
-
-  // カメラ起動後、自動撮影モードのタイマー（showTutorial = falseの場合）
-  useEffect(() => {
-    if (!showTutorial && currentStep === 'camera' && stream && !isProcessing && autoShootCountdown === null) {
-      // カメラ起動後、2秒のカウントダウンを開始
-      setAutoShootCountdown(2);
-      
-      const countdownInterval = setInterval(() => {
-        setAutoShootCountdown(prev => {
-          if (prev === null || prev <= 1) {
-            clearInterval(countdownInterval);
-            // カウントダウン終了、撮影実行
-            setTimeout(() => {
-              takePhoto();
-              setAutoShootCountdown(null);
-            }, 100);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => {
-        clearInterval(countdownInterval);
-        setAutoShootCountdown(null);
-      };
-    }
-  }, [currentStep, stream, isProcessing, showTutorial, takePhoto, autoShootCountdown]);
-
-  // カメラ停止
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }, [stream]);
-
   // 写真撮影（改善版）
   const takePhoto = useCallback(async () => {
     if (!stream || !videoRef.current) {
@@ -301,6 +252,55 @@ export default function ImprovedCameraComponent({
       setIsProcessing(false);
     }
   }, [stream, cameraQuality]);
+
+  // チュートリアルをスキップしてカメラに直行する場合
+  useEffect(() => {
+    if (isOpen && !showTutorial) {
+      setCurrentStep('camera');
+      startCamera();
+    } else if (isOpen && showTutorial) {
+      setCurrentStep('tutorial');
+    }
+  }, [isOpen, showTutorial, startCamera]);
+
+  // カメラ起動後、自動撮影モードのタイマー（showTutorial = falseの場合）
+  useEffect(() => {
+    if (!showTutorial && currentStep === 'camera' && stream && !isProcessing && autoShootCountdown === null) {
+      // カメラ起動後、2秒のカウントダウンを開始
+      setAutoShootCountdown(2);
+      
+      const countdownInterval = setInterval(() => {
+        setAutoShootCountdown(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(countdownInterval);
+            // カウントダウン終了、撮影実行
+            setTimeout(() => {
+              takePhoto();
+              setAutoShootCountdown(null);
+            }, 100);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        clearInterval(countdownInterval);
+        setAutoShootCountdown(null);
+      };
+    }
+  }, [currentStep, stream, isProcessing, showTutorial, takePhoto, autoShootCountdown]);
+
+  // カメラ停止
+  const stopCamera = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, [stream]);
 
   // ファイル選択処理（改善版）
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
