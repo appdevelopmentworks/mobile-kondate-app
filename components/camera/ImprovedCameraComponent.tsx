@@ -69,6 +69,7 @@ export default function ImprovedCameraComponent({
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const autoShootTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 
   // カメラ設定
@@ -192,6 +193,12 @@ export default function ImprovedCameraComponent({
       return;
     }
 
+    // 自動撮影タイマーがある場合はクリア
+    if (autoShootTimerRef.current) {
+      clearInterval(autoShootTimerRef.current);
+      autoShootTimerRef.current = null;
+    }
+
     try {
       setIsProcessing(true);
       setCurrentStep('processing');
@@ -265,7 +272,9 @@ export default function ImprovedCameraComponent({
 
   // カメラ起動後、自動撮影モードのタイマー（showTutorial = falseの場合）
   useEffect(() => {
-    if (!showTutorial && currentStep === 'camera' && stream && !isProcessing && autoShootCountdown === null) {
+    if (!showTutorial && currentStep === 'camera' && stream && !isProcessing && autoShootCountdown === null && !autoShootTimerRef.current) {
+      console.log('🎯 自動撮影タイマー開始');
+      
       // カメラ起動後、2秒のカウントダウンを開始
       setAutoShootCountdown(2);
       
@@ -273,8 +282,10 @@ export default function ImprovedCameraComponent({
         setAutoShootCountdown(prev => {
           if (prev === null || prev <= 1) {
             clearInterval(countdownInterval);
+            autoShootTimerRef.current = null;
             // カウントダウン終了、撮影実行
             setTimeout(() => {
+              console.log('📸 自動撮影実行');
               takePhoto();
               setAutoShootCountdown(null);
             }, 100);
@@ -284,12 +295,18 @@ export default function ImprovedCameraComponent({
         });
       }, 1000);
 
+      autoShootTimerRef.current = countdownInterval;
+
       return () => {
-        clearInterval(countdownInterval);
+        console.log('🛑 自動撮影タイマークリーンアップ');
+        if (autoShootTimerRef.current) {
+          clearInterval(autoShootTimerRef.current);
+          autoShootTimerRef.current = null;
+        }
         setAutoShootCountdown(null);
       };
     }
-  }, [currentStep, stream, isProcessing, showTutorial, takePhoto, autoShootCountdown]);
+  }, [currentStep, stream, isProcessing, showTutorial]);
 
   // カメラ停止
   const stopCamera = useCallback(() => {
@@ -356,6 +373,11 @@ export default function ImprovedCameraComponent({
   // モーダルクローズ
   const handleClose = useCallback(() => {
     stopCamera();
+    // 自動撮影タイマーのクリーンアップ
+    if (autoShootTimerRef.current) {
+      clearInterval(autoShootTimerRef.current);
+      autoShootTimerRef.current = null;
+    }
     setCapturedImage(null);
     setRecognitionResult(null);
     setError(null);
@@ -376,9 +398,15 @@ export default function ImprovedCameraComponent({
 
   // 再試行
   const retryCapture = useCallback(() => {
+    // 自動撮影タイマーをクリア
+    if (autoShootTimerRef.current) {
+      clearInterval(autoShootTimerRef.current);
+      autoShootTimerRef.current = null;
+    }
     setCapturedImage(null);
     setRecognitionResult(null);
     setError(null);
+    setAutoShootCountdown(null);
     setCurrentStep('camera');
     if (!stream) {
       startCamera();
