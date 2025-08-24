@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import MobileLayout from '../../components/layout/MobileLayout';
 import CameraIngredientRecognition from '../../components/camera/CameraIngredientRecognition';
+import ImprovedCameraComponent from '../../components/camera/ImprovedCameraComponent';
 import { useMealStore } from '../../lib/store';
 import {
   IngredientRecognitionResult,
@@ -633,21 +634,15 @@ export default function CameraRecognitionPage() {
           )}
         </AnimatePresence>
 
-        {/* カメラコンポーネント */}
+        {/* 改善されたカメラコンポーネント */}
         <AnimatePresence>
           {isCameraOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black"
-            >
-              <CameraIngredientRecognition
-                isOpen={isCameraOpen}
-                onClose={() => setIsCameraOpen(false)}
-                onIngredientsRecognized={handleIngredientsRecognized}
-              />
-            </motion.div>
+            <ImprovedCameraComponent
+              isOpen={isCameraOpen}
+              onClose={() => setIsCameraOpen(false)}
+              onIngredientsRecognized={handleIngredientsRecognized}
+              showTutorial={true}
+            />
           )}
         </AnimatePresence>
       </div>

@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import MobileLayout from '../../components/layout/MobileLayout';
 import { useMealStore } from '../../lib/store';
 import { motion } from 'framer-motion';
 import { History, Clock, Users, ChefHat, Heart, Search, Trash2, Calendar } from 'lucide-react';
 
 export default function HistoryPage() {
+  const router = useRouter();
   const { history, favorites, toggleFavorite, resetStore } = useMealStore();
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -175,12 +177,13 @@ export default function HistoryPage() {
                         <h5 className="text-sm font-semibold text-gray-700">料理:</h5>
                         <div className="flex flex-wrap gap-2">
                           {meal.recipes.map((recipe, recipeIndex) => (
-                            <span
+                            <button
                               key={recipeIndex}
-                              className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm"
+                              onClick={() => router.push(`/recipe/${recipe.id}`)}
+                              className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm hover:bg-purple-200 transition-colors"
                             >
                               {recipe.name}
-                            </span>
+                            </button>
                           ))}
                         </div>
                       </div>

@@ -13,14 +13,14 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
-  // 本番環境でのみ静的エクスポートを有効化
-  ...(process.env.NODE_ENV === 'production' && {
-    output: 'export',
-    images: {
-      unoptimized: true
-    },
-    trailingSlash: true,
-  }),
+  // 本番環境でのみ静的エクスポートを有効化（一時的に無効化）
+  // ...(process.env.NODE_ENV === 'production' && {
+  //   output: 'export',
+  //   images: {
+  //     unoptimized: true
+  //   },
+  //   trailingSlash: true,
+  // }),
   
   // 開発環境では通常のNext.js設定
   ...(process.env.NODE_ENV === 'development' && {

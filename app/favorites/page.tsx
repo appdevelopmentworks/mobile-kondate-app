@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import MobileLayout from '../../components/layout/MobileLayout';
 import { useMealStore } from '../../lib/store';
 import { motion } from 'framer-motion';
@@ -8,6 +9,7 @@ import { Heart, Clock, Users, ChefHat, Trash2, Search } from 'lucide-react';
 import type { MealSuggestion } from '../../lib/types';
 
 export default function FavoritesPage() {
+  const router = useRouter();
   const { history, favorites, toggleFavorite, removeFromFavorites } = useMealStore();
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -145,12 +147,13 @@ export default function FavoritesPage() {
                   <h4 className="text-sm font-semibold text-gray-700">料理:</h4>
                   <div className="flex flex-wrap gap-2">
                     {meal.recipes.map((recipe, recipeIndex) => (
-                      <span
+                      <button
                         key={recipeIndex}
-                        className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm"
+                        onClick={() => router.push(`/recipe/${recipe.id}`)}
+                        className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm hover:bg-pink-200 transition-colors"
                       >
                         {recipe.name}
-                      </span>
+                      </button>
                     ))}
                   </div>
                 </div>

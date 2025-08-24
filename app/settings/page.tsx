@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import MobileLayout from '@/components/layout/MobileLayout';
 import { motion } from 'framer-motion';
 import { 
@@ -18,6 +19,7 @@ import {
   RotateCcw,
   Eye,
   EyeOff,
+  Package,
   AlertCircle,
   CheckCircle,
   Activity,
@@ -35,6 +37,7 @@ import CacheManager from '@/components/settings/CacheManager';
 import UsageStatistics from '@/components/settings/UsageStatistics';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const {
     darkMode,
     notifications,
@@ -404,6 +407,13 @@ export default function SettingsPage() {
     {
       title: 'デフォルト設定',
       items: [
+        {
+          icon: Package,
+          label: '食材在庫管理',
+          value: '冷蔵庫の中身を管理',
+          action: () => router.push('/inventory'),
+          type: 'button' as const,
+        },
         {
           icon: Smartphone,
           label: 'デフォルト人数',

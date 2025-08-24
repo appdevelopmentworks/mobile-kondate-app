@@ -20,11 +20,11 @@ export const sampleRecipes: Recipe[] = [
       { name: 'だし汁', amount: '400', unit: 'ml' },
     ],
     steps: [
-      { order: 1, description: 'じゃがいも、にんじんを一口大に切る', duration: 5 },
+      { order: 1, description: 'じゃがいも、にんじんを一口大に切る', duration: 5, tips: 'じゃがいもは水にさらしてアクを抜きましょう' },
       { order: 2, description: '玉ねぎをくし切りにする', duration: 2 },
-      { order: 3, description: '牛肉を炒めて取り出す', duration: 5 },
+      { order: 3, description: '牛肉を炒めて取り出す', duration: 5, tips: '強火で短時間で炒めると肉が固くなりません' },
       { order: 4, description: '野菜を炒める', duration: 5 },
-      { order: 5, description: 'だし汁と調味料を加えて煮込む', duration: 20 },
+      { order: 5, description: 'だし汁と調味料を加えて煮込む', duration: 20, tips: '落とし蓋をすると味が良く染み込みます' },
       { order: 6, description: '牛肉を戻して、味を調える', duration: 3 },
     ],
     nutrition: {
@@ -51,8 +51,8 @@ export const sampleRecipes: Recipe[] = [
       { name: 'レモン', amount: '1/2', unit: '個', optional: true },
     ],
     steps: [
-      { order: 1, description: '鮭に塩を振って10分置く', duration: 10 },
-      { order: 2, description: 'グリルで両面を焼く', duration: 8 },
+      { order: 1, description: '鮭に塩を振って10分置く', duration: 10, tips: '塩を振って時間を置くことで臭みが取れます' },
+      { order: 2, description: 'グリルで両面を焼く', duration: 8, tips: '皮目から焼くとパリッと仕上がります' },
       { order: 3, description: '大根おろしとレモンを添える', duration: 2 },
     ],
     nutrition: {

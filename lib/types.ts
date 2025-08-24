@@ -91,6 +91,25 @@ export interface UserHistory {
   preferences: Partial<MealPreference>;
 }
 
+// レシピレビュー関連の型定義
+export interface RecipeReview {
+  id: string;
+  recipeId: string;
+  recipeName: string;
+  mealId?: string;
+  rating: number; // 1-5
+  difficulty: 'easier' | 'as_expected' | 'harder';
+  taste: 'poor' | 'fair' | 'good' | 'very_good' | 'excellent';
+  notes: string;
+  improvements: string;
+  wouldMakeAgain: boolean;
+  actualCookingTime?: number;
+  photos?: string[];
+  tags: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // 食材認識関連の型定義
 export interface IngredientRecognitionResult {
   success: boolean;

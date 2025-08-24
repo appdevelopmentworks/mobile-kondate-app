@@ -88,6 +88,25 @@ export default function HomePage() {
             </div>
           </button>
 
+          {/* 食材から作る */}
+          <button
+            onClick={() => router.push('/ingredients')}
+            className="w-full bg-gradient-to-r from-emerald-400 to-green-400 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-left">
+                <div className="flex items-center gap-3 mb-2">
+                  <ChefHat className="w-6 h-6" />
+                  <h3 className="text-xl font-bold">食材から作る</h3>
+                </div>
+                <p className="text-white/90 text-sm">
+                  手持ちの食材から献立を作成
+                </p>
+              </div>
+              <ArrowRight className="w-6 h-6 text-white/80" />
+            </div>
+          </button>
+
           {/* おまかせ献立 */}
           <button
             onClick={handleQuickMeal}

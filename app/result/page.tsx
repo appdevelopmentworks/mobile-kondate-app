@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Star,
   Flame,
-  CheckCircle2
+  CheckCircle2,
+  ChevronRight
 } from 'lucide-react';
 import { sampleRecipes } from '../../lib/sample-data';
 import type { MealSuggestion, Recipe } from '../../lib/types';
@@ -630,11 +631,14 @@ export default function ResultPage() {
                     <p className="text-lg font-bold">{mealSuggestion?.totalTime}分</p>
                     <p className="text-sm text-white/80">調理時間</p>
                   </div>
-                  <div>
+                  <button
+                    onClick={() => router.push('/nutrition')}
+                    className="hover:bg-white/10 rounded-xl p-2 transition-colors"
+                  >
                     <Flame className="w-8 h-8 mx-auto mb-2" />
                     <p className="text-lg font-bold">{mealSuggestion?.totalCalories}</p>
                     <p className="text-sm text-white/80">kcal</p>
-                  </div>
+                  </button>
                   <div>
                     <Users className="w-8 h-8 mx-auto mb-2" />
                     <p className="text-lg font-bold">{defaultServings}人分</p>
@@ -655,12 +659,13 @@ export default function ResultPage() {
                 </h2>
                 <div className="space-y-3">
                   {mealSuggestion?.recipes.map((recipe, index) => (
-                    <motion.div
+                    <motion.button
                       key={recipe.id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 + index * 0.1 }}
-                      className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4"
+                      onClick={() => router.push(`/recipe/${recipe.id}`)}
+                      className="w-full bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4 text-left hover:bg-white/95 transition-all duration-200 active:scale-[0.98]"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -679,13 +684,16 @@ export default function ResultPage() {
                             </span>
                           </div>
                         </div>
-                        <div className="text-2xl">
-                          {recipe.category === 'main' ? '🍖' : 
-                           recipe.category === 'side' ? '🥬' : 
-                           recipe.category === 'soup' ? '🍲' : '🍽️'}
+                        <div className="flex items-center gap-2">
+                          <div className="text-2xl">
+                            {recipe.category === 'main' ? '🍖' : 
+                             recipe.category === 'side' ? '🥬' : 
+                             recipe.category === 'soup' ? '🍲' : '🍽️'}
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-gray-400" />
                         </div>
                       </div>
-                    </motion.div>
+                    </motion.button>
                   ))}
                 </div>
               </motion.div>
@@ -697,10 +705,19 @@ export default function ResultPage() {
                 transition={{ delay: 0.4 }}
                 className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4"
               >
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5 text-green-500" />
-                  買い物リスト
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <ShoppingCart className="w-5 h-5 text-green-500" />
+                    買い物リスト
+                  </h3>
+                  <button
+                    onClick={() => router.push('/shopping-list')}
+                    className="text-green-600 hover:text-green-700 text-sm font-medium flex items-center gap-1 hover:bg-green-50 px-2 py-1 rounded-lg transition-colors"
+                  >
+                    詳細
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {mealSuggestion?.shoppingList.slice(0, 8).map((item, index) => (
                     <div key={index} className="flex items-center justify-between gap-2 text-sm min-w-0">
@@ -726,10 +743,19 @@ export default function ResultPage() {
                 transition={{ delay: 0.45 }}
                 className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4"
               >
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-pink-500" />
-                  調理スケジュール
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-pink-500" />
+                    調理スケジュール
+                  </h3>
+                  <button
+                    onClick={() => router.push('/cooking-schedule')}
+                    className="text-pink-600 hover:text-pink-700 text-sm font-medium flex items-center gap-1 hover:bg-pink-50 px-2 py-1 rounded-lg transition-colors"
+                  >
+                    詳細
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
                 <div className="space-y-3">
                   {mealSuggestion?.cookingSchedule.slice(0, 6).map((schedule, index) => (
                     <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm">
