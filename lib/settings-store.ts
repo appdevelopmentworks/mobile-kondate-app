@@ -56,8 +56,15 @@ const loadFromStorage = (): Partial<AppSettings> => {
   
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
+    console.log('🔧 設定ストア: LocalStorageから読み込み', { stored });
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      console.log('🔧 設定ストア: パース済み設定', {
+        defaultServings: parsed.defaultServings,
+        defaultCookingTime: parsed.defaultCookingTime,
+        全体: parsed
+      });
+      return parsed;
     }
   } catch (error) {
     console.error('設定の読み込みエラー:', error);
@@ -67,26 +74,62 @@ const loadFromStorage = (): Partial<AppSettings> => {
 
 // ローカルストレージに設定を保存
 const saveToStorage = (settings: AppSettings) => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') {
+    console.log('🔧 設定保存: window未定義のためスキップ');
+    return;
+  }
   
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    const jsonString = JSON.stringify(settings);
+    console.log('🔧 設定保存: LocalStorageに保存開始', {
+      キー: STORAGE_KEY,
+      保存データ: {
+        defaultServings: settings.defaultServings,
+        defaultCookingTime: settings.defaultCookingTime,
+        全体: settings
+      },
+      JSON文字列長: jsonString.length
+    });
+    
+    localStorage.setItem(STORAGE_KEY, jsonString);
+    
+    // 保存確認
+    const saved = localStorage.getItem(STORAGE_KEY);
+    const savedParsed = saved ? JSON.parse(saved) : null;
+    console.log('🔧 設定保存: 保存確認', {
+      保存成功: !!saved,
+      保存されたdefaultServings: savedParsed?.defaultServings,
+      保存されたdefaultCookingTime: savedParsed?.defaultCookingTime
+    });
+    
   } catch (error) {
-    console.error('設定の保存エラー:', error);
+    console.error('🔧 設定の保存エラー:', error);
   }
 };
 
 export const useSettingsStore = create<SettingsState>((set, get) => {
   // 初期設定（ストレージから読み込み + デフォルト設定）
-  const initialSettings = { ...defaultSettings, ...loadFromStorage() };
+  const storedSettings = loadFromStorage();
+  const initialSettings = { ...defaultSettings, ...storedSettings };
+  
+  console.log('🔧 設定ストア: 初期化', {
+    デフォルト設定: defaultSettings,
+    保存済み設定: storedSettings,
+    最終設定: initialSettings
+  });
   
   return {
     ...initialSettings,
     
     updateSettings: (newSettings: Partial<AppSettings>) => {
-      console.log('設定ストア: 設定更新', newSettings);
+      console.log('🔧 設定ストア: 設定更新', newSettings);
       set((state) => {
         const updatedState = { ...state, ...newSettings };
+        console.log('🔧 設定ストア: 更新後の状態', {
+          defaultServings: updatedState.defaultServings,
+          defaultCookingTime: updatedState.defaultCookingTime,
+          全体: updatedState
+        });
         saveToStorage(updatedState);
         return updatedState;
       });

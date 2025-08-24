@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import MobileLayout from '../../../components/layout/MobileLayout';
 import { useMealStore } from '../../../lib/store';
 import { generateMealSuggestion, checkMealGenerationStatus } from '../../../lib/meal-generation';
-import { useApiKeyStore } from '../../../lib/settings-store';
+import { useApiKeyStore, useSettingsStore } from '../../../lib/settings-store';
 import { sampleRecipes } from '../../../lib/sample-data';
 import type { MealSuggestion, Recipe } from '../../../lib/types';
 import { 
@@ -46,11 +46,21 @@ const quickMealPatterns = {
 
 export default function QuickMealPage() {
   const router = useRouter();
-  const { addToHistory, setGeneratedSuggestion } = useMealStore();
+  const { formData, addToHistory, setGeneratedSuggestion, updateFormData } = useMealStore();
   const { getApiKey, getPreferredProvider } = useApiKeyStore();
+  const { defaultServings, defaultCookingTime } = useSettingsStore();
+  
+  // デバッグ用：設定値をログ出力
+  console.log('🔧 おまかせ献立ページ - 設定値:', {
+    defaultServings,
+    defaultCookingTime,
+    formDataServings: formData.servings,
+    finalServings: formData.servings || defaultServings,
+    timestamp: new Date().toISOString()
+  });
   const [preferences, setPreferences] = useState<QuickPreferences>({
     mealType: 'auto',
-    servings: 2,
+    servings: defaultServings,
     dietaryRestrictions: [],
     preferredStyle: '和食'
   });
@@ -265,6 +275,18 @@ export default function QuickMealPage() {
     try {
       console.log('🚀 [おまかせ献立] AI献立生成開始...', { preferences });
       
+      // formDataを設定のデフォルト値で更新
+      updateFormData({
+        servings: defaultServings,
+        cookingTime: defaultCookingTime
+      });
+      
+      console.log('🔧 [おまかせ献立] formData更新', {
+        設定前: formData.servings,
+        更新後: defaultServings,
+        調理時間: defaultCookingTime
+      });
+      
       // 優先プロバイダーを取得
       const preferredProvider = getPreferredProvider('mealGeneration');
       const availableKeys = {
@@ -309,7 +331,7 @@ export default function QuickMealPage() {
       const mealPreferences = {
         ingredients: generateStyleBasedIngredients(preferences.preferredStyle, mealType),
         servings: preferences.servings,
-        cookingTime: '45', // 文字列形式
+        cookingTime: defaultCookingTime, // デフォルト調理時間を使用
         mealType: mealType === '朝食' ? 'breakfast' as const : 
                  mealType === '昼食' ? 'lunch' as const : 'dinner' as const,
         avoidIngredients: preferences.dietaryRestrictions,

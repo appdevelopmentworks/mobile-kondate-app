@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMealStore } from '../../lib/store';
+import { useSettingsStore } from '../../lib/settings-store';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from '../../components/layout/MobileLayout';
 import { 
@@ -48,6 +49,16 @@ const mealPatterns = {
 export default function ResultPage() {
   const router = useRouter();
   const { formData, addToHistory, toggleFavorite, favorites, setLoading, isLoading, clearGeneratedSuggestion } = useMealStore();
+  const { defaultServings, defaultCookingTime } = useSettingsStore();
+  
+  // デバッグ用：設定値をログ出力
+  console.log('🔧 結果画面 - 設定値:', {
+    defaultServings,
+    defaultCookingTime,
+    formDataServings: formData.servings,
+    finalServings: formData.servings || defaultServings,
+    timestamp: new Date().toISOString()
+  });
   const [mealSuggestion, setMealSuggestion] = useState<MealSuggestion | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
@@ -78,10 +89,12 @@ export default function ResultPage() {
   }, [formData.mealType, formData.nutritionBalance]);
 
   const getMealDescription = useCallback(() => {
-    const servings = formData.servings || 2;
-    const time = formData.cookingTime === 'unlimited' ? 'じっくり' : `${formData.cookingTime}分`;
+    // デフォルト設定を常に優先（formDataはページリロードで失われるため）
+    const servings = defaultServings;
+    const cookingTime = defaultCookingTime;
+    const time = cookingTime === 'unlimited' ? 'じっくり' : `${cookingTime}分`;
     return `${servings}人分・調理時間${time}で作れる献立です`;
-  }, [formData.servings, formData.cookingTime]);
+  }, [defaultServings, defaultCookingTime]);
 
   const generateShoppingList = useCallback((recipes: Recipe[]) => {
     const ingredients = new Map();
@@ -147,7 +160,7 @@ export default function ResultPage() {
       // フォームデータからGroq APIリクエストを構築
       const mealRequest = {
         ingredients: formData.ingredients || ['野菜', '肉類', '調味料'],
-        servings: formData.servings || 2,
+        servings: defaultServings,
         cookingTime: formData.cookingTime === 'unlimited' ? 60 : Number(formData.cookingTime) || 45,
         mealType: formData.mealType === 'breakfast' ? 'breakfast' as const :
                  formData.mealType === 'lunch' ? 'lunch' as const : 'dinner' as const,
@@ -223,7 +236,8 @@ export default function ResultPage() {
         
         // 総カロリーと調理時間を計算
         const totalCalories = apiRecipes.reduce((sum, recipe) => sum + recipe.nutrition.calories, 0);
-        const totalTime = Math.max(...apiRecipes.map(recipe => recipe.cookingTime));
+        // デフォルト設定の調理時間を使用
+        const totalTime = defaultCookingTime === 'unlimited' ? 90 : parseInt(defaultCookingTime);
         
         // 買い物リストを生成
         const shoppingList = generateShoppingList(apiRecipes);
@@ -238,7 +252,7 @@ export default function ResultPage() {
           recipes: apiRecipes,
           totalTime,
           totalCalories,
-          servings: formData.servings || 2,
+          servings: defaultServings,
           tags: ['AI生成', formData.mealType || '夕食'],
           shoppingList,
           cookingSchedule,
@@ -278,7 +292,8 @@ export default function ResultPage() {
 
     // 総カロリーと調理時間を計算
     const totalCalories = selectedRecipes.reduce((sum, recipe) => sum + recipe.nutrition.calories, 0);
-    const totalTime = Math.max(...selectedRecipes.map(recipe => recipe.cookingTime));
+    // デフォルト設定の調理時間を使用
+    const totalTime = defaultCookingTime === 'unlimited' ? 90 : parseInt(defaultCookingTime);
 
     // 買い物リストを生成
     const shoppingList = generateShoppingList(selectedRecipes);
@@ -293,7 +308,7 @@ export default function ResultPage() {
       recipes: selectedRecipes,
       totalTime,
       totalCalories,
-      servings: formData.servings || 2,
+      servings: defaultServings,
       tags: ['サンプル', formData.mealType || '夕食'],
       shoppingList,
       cookingSchedule,
@@ -302,9 +317,15 @@ export default function ResultPage() {
 
     setMealSuggestion(suggestion);
     addToHistory(suggestion);
-  }, [formData.dishCount, formData.mealType, formData.servings, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory]);
+  }, [formData.dishCount, formData.mealType, defaultServings, generateShoppingList, generateCookingSchedule, getMealTitle, getMealDescription, addToHistory]);
 
   useEffect(() => {
+    console.log('🔍 結果画面: formDataチェック', {
+      hasGeneratedSuggestion: !!formData.generatedSuggestion,
+      generatedSuggestionTitle: formData.generatedSuggestion?.title,
+      formData: formData
+    });
+    
     // AI生成済みの献立データがある場合はそれを使用
     if (formData.generatedSuggestion) {
       console.log('✅ AI生成済み献立データを使用:', formData.generatedSuggestion);
@@ -313,7 +334,7 @@ export default function ResultPage() {
       setIsRegenerating(false);
     } else {
       // フォームデータに基づいて献立を生成
-      console.log('🔄 従来システムで献立生成を実行');
+      console.log('🔄 従来システムで献立生成を実行（モックデータ）');
       generateMealSuggestion();
     }
   }, [formData.generatedSuggestion, generateMealSuggestion, addToHistory]);
@@ -408,7 +429,7 @@ export default function ResultPage() {
           `時刻${uniqueTimestamp}の新しい発想で`,
           `ランダムシード${randomSeed}`
         ],
-        servings: formData.servings || 2,
+        servings: defaultServings,
         cookingTime: formData.cookingTime === 'unlimited' ? '60' : (formData.cookingTime || '45'),
         mealType: formData.mealType || 'dinner',
         avoidIngredients: [
@@ -616,7 +637,7 @@ export default function ResultPage() {
                   </div>
                   <div>
                     <Users className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-lg font-bold">{formData.servings}人分</p>
+                    <p className="text-lg font-bold">{defaultServings}人分</p>
                     <p className="text-sm text-white/80">分量</p>
                   </div>
                 </div>
