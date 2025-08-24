@@ -279,7 +279,22 @@ export default function ImprovedCameraComponent({
     }
   }, [isOpen, showTutorial, startCamera]);
 
-  // 自動撮影機能は削除 - 手動撮影のみ
+  // カメラ起動後にリフレッシュボタンを自動実行（showTutorial = falseの場合）
+  useEffect(() => {
+    if (!showTutorial && currentStep === 'camera' && stream && !isProcessing) {
+      console.log('📹 カメラストリーム検出、リフレッシュボタン自動実行');
+      
+      // カメラストリーム検出後、少し待ってからリフレッシュボタンと同じ動作を実行
+      const autoRefreshTimer = setTimeout(() => {
+        console.log('🔄 自動リフレッシュ実行 (startCamera呼び出し)');
+        startCamera(); // リフレッシュボタンと同じ動作
+      }, 800); // 0.8秒待機
+
+      return () => {
+        clearTimeout(autoRefreshTimer);
+      };
+    }
+  }, [currentStep, stream, isProcessing, showTutorial, startCamera]);
 
   // カメラ停止
   const stopCamera = useCallback(() => {
