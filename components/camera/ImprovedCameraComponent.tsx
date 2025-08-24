@@ -64,6 +64,7 @@ export default function ImprovedCameraComponent({
   const [showSettings, setShowSettings] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [cameraQuality, setCameraQuality] = useState<'low' | 'medium' | 'high'>('medium');
+  const [autoShootCountdown, setAutoShootCountdown] = useState<number | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -193,6 +194,34 @@ export default function ImprovedCameraComponent({
       setCurrentStep('tutorial');
     }
   }, [isOpen, showTutorial, startCamera]);
+
+  // カメラ起動後、自動撮影モードのタイマー（showTutorial = falseの場合）
+  useEffect(() => {
+    if (!showTutorial && currentStep === 'camera' && stream && !isProcessing && autoShootCountdown === null) {
+      // カメラ起動後、2秒のカウントダウンを開始
+      setAutoShootCountdown(2);
+      
+      const countdownInterval = setInterval(() => {
+        setAutoShootCountdown(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(countdownInterval);
+            // カウントダウン終了、撮影実行
+            setTimeout(() => {
+              takePhoto();
+              setAutoShootCountdown(null);
+            }, 100);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        clearInterval(countdownInterval);
+        setAutoShootCountdown(null);
+      };
+    }
+  }, [currentStep, stream, isProcessing, showTutorial, takePhoto, autoShootCountdown]);
 
   // カメラ停止
   const stopCamera = useCallback(() => {
@@ -333,6 +362,7 @@ export default function ImprovedCameraComponent({
     setIsProcessing(false);
     setCurrentStep('tutorial');
     setProcessingProgress(0);
+    setAutoShootCountdown(null);
     onClose();
   }, [stopCamera, onClose]);
 
@@ -439,6 +469,8 @@ export default function ImprovedCameraComponent({
                   onQualityChange={setCameraQuality}
                   onRetryCamera={startCamera}
                   error={error}
+                  autoShootCountdown={autoShootCountdown}
+                  showTutorial={showTutorial}
                 />
               )}
 
@@ -583,7 +615,9 @@ function CameraScreen({
   cameraQuality,
   onQualityChange,
   onRetryCamera,
-  error
+  error,
+  autoShootCountdown,
+  showTutorial
 }: {
   videoRef: React.RefObject<HTMLVideoElement>;
   stream: MediaStream | null;
@@ -595,6 +629,8 @@ function CameraScreen({
   onQualityChange: (quality: 'low' | 'medium' | 'high') => void;
   onRetryCamera: () => void;
   error: string | null;
+  autoShootCountdown: number | null;
+  showTutorial: boolean;
 }) {
   return (
     <motion.div
@@ -660,6 +696,29 @@ function CameraScreen({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 自動撮影カウントダウン表示（showTutorial = falseの場合） */}
+      {!showTutorial && autoShootCountdown !== null && autoShootCountdown > 0 && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-center text-white"
+          >
+            <div className="w-24 h-24 rounded-full border-4 border-white flex items-center justify-center mb-4 mx-auto">
+              <motion.span
+                key={autoShootCountdown}
+                initial={{ scale: 1.5 }}
+                animate={{ scale: 1 }}
+                className="text-4xl font-bold"
+              >
+                {autoShootCountdown}
+              </motion.span>
+            </div>
+            <p className="text-lg font-semibold">自動撮影まで</p>
+          </motion.div>
+        </div>
+      )}
 
       {/* カメラコントロール */}
       <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center gap-6">
