@@ -273,29 +273,48 @@ export default function ImprovedCameraComponent({
   // カメラ起動後、自動撮影モードのタイマー（showTutorial = falseの場合）
   useEffect(() => {
     if (!showTutorial && currentStep === 'camera' && stream && !isProcessing && autoShootCountdown === null && !autoShootTimerRef.current) {
-      console.log('🎯 自動撮影タイマー開始');
-      
-      // カメラ起動後、2秒のカウントダウンを開始
-      setAutoShootCountdown(2);
-      
-      const countdownInterval = setInterval(() => {
-        setAutoShootCountdown(prev => {
-          if (prev === null || prev <= 1) {
-            clearInterval(countdownInterval);
-            autoShootTimerRef.current = null;
-            // カウントダウン終了、撮影実行
-            setTimeout(() => {
-              console.log('📸 自動撮影実行');
-              takePhoto();
-              setAutoShootCountdown(null);
-            }, 100);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      // ビデオの準備完了を確認してからカウントダウン開始
+      const checkVideoReady = () => {
+        const video = videoRef.current;
+        if (video && video.readyState >= 2 && video.videoWidth > 0) {
+          console.log('🎯 自動撮影タイマー開始 - カメラ準備完了:', {
+            readyState: video.readyState,
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight
+          });
+          
+          // カメラ準備完了後、2秒のカウントダウンを開始
+          setAutoShootCountdown(2);
+          
+          const countdownInterval = setInterval(() => {
+            setAutoShootCountdown(prev => {
+              if (prev === null || prev <= 1) {
+                clearInterval(countdownInterval);
+                autoShootTimerRef.current = null;
+                // カウントダウン終了、撮影実行
+                setTimeout(() => {
+                  console.log('📸 自動撮影実行');
+                  takePhoto();
+                  setAutoShootCountdown(null);
+                }, 100);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
 
-      autoShootTimerRef.current = countdownInterval;
+          autoShootTimerRef.current = countdownInterval;
+        } else {
+          // ビデオがまだ準備できていない場合、少し待ってから再チェック
+          console.log('⏳ カメラ準備待機中...', {
+            readyState: video?.readyState,
+            videoWidth: video?.videoWidth
+          });
+          setTimeout(checkVideoReady, 500);
+        }
+      };
+
+      checkVideoReady();
 
       return () => {
         console.log('🛑 自動撮影タイマークリーンアップ');
