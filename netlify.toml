@@ -3,7 +3,7 @@
   # ビルドコマンド（Netlify Next.jsプラグイン用）
   command = "npm run build"
   # ビルド出力ディレクトリ（Netlifyプラグイン用）
-  publish = "."
+  publish = ".next"
 
 [build.environment]
   # Node.jsバージョン
