@@ -6,9 +6,7 @@ import { useMealStore } from '../../lib/store';
 import { motion } from 'framer-motion';
 import { Plus, X, ChevronRight, Home, Camera } from 'lucide-react';
 import { commonIngredients } from '../../lib/sample-data';
-import SimpleCameraTest from '../camera/SimpleCameraTest';
-import CameraPermissionTest from '../camera/CameraPermissionTest';
-import CameraIngredientRecognitionFixed from '../camera/CameraIngredientRecognitionFixed';
+import ImprovedCameraComponent from '../camera/ImprovedCameraComponent';
 // import CameraIngredientRecognition from '../camera/CameraIngredientRecognition';
 
 export default function IngredientsStep() {
@@ -19,8 +17,6 @@ export default function IngredientsStep() {
   );
   const [customIngredient, setCustomIngredient] = useState('');
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [isPermissionTestOpen, setIsPermissionTestOpen] = useState(false);
-  const [isTestCameraOpen, setIsTestCameraOpen] = useState(false);
 
   const toggleIngredient = (ingredient: string) => {
     setSelectedIngredients((prev) =>
@@ -38,15 +34,21 @@ export default function IngredientsStep() {
   };
 
   const handleCameraRecognition = (ingredientsOrImageData: string[] | string) => {
-    // Handle both string array (manual input) and string (image data)
+    console.log('🍅 食材認識結果:', ingredientsOrImageData);
+    
+    // Handle both string array (manual input) and string (image data)  
     const recognizedIngredients = Array.isArray(ingredientsOrImageData) ? ingredientsOrImageData : [];
+    
     // 重複を避けながら認識された食材を追加
     const newIngredients = recognizedIngredients.filter(
       (ingredient) => !selectedIngredients.includes(ingredient)
     );
+    
     if (newIngredients.length > 0) {
       setSelectedIngredients((prev) => [...prev, ...newIngredients]);
+      console.log('✅ 新しい食材を追加:', newIngredients);
     }
+    
     setIsCameraOpen(false);
   };
 
@@ -110,22 +112,6 @@ export default function IngredientsStep() {
                 <Camera className="w-5 h-5" />
                 <span>📸 食材を撮影して認識</span>
               </button>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setIsPermissionTestOpen(true)}
-                  className="flex items-center justify-center gap-1 py-2 px-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors text-sm"
-                >
-                  🔍 権限テスト
-                </button>
-                
-                <button
-                  onClick={() => setIsTestCameraOpen(true)}
-                  className="flex items-center justify-center gap-1 py-2 px-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                >
-                  🎥 テスト撮影
-                </button>
-              </div>
             </div>
           </div>
 
@@ -201,23 +187,12 @@ export default function IngredientsStep() {
           <span>ホームに戻る</span>
         </button>
       </div>
-      {/* 権限テストモーダル */}
-      <CameraPermissionTest
-        isOpen={isPermissionTestOpen}
-        onClose={() => setIsPermissionTestOpen(false)}
-      />
-      
-      {/* メインカメラ機能（食材認識統合） */}
-      <CameraIngredientRecognitionFixed
+      {/* 改善されたカメラ機能（食材認識統合） */}
+      <ImprovedCameraComponent
         isOpen={isCameraOpen}
         onIngredientsRecognized={handleCameraRecognition}
         onClose={() => setIsCameraOpen(false)}
-      />
-      
-      {/* テスト用カメラモーダル */}
-      <SimpleCameraTest
-        isOpen={isTestCameraOpen}
-        onClose={() => setIsTestCameraOpen(false)}
+        showTutorial={false}
       />
       
       {/* 元のカメラ食材認識モーダル（一時的にコメントアウト） */}

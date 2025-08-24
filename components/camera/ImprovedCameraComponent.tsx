@@ -700,7 +700,7 @@ function CameraScreen({
 
 
       {/* カメラコントロール */}
-      <div className="absolute bottom-20 left-0 right-0 flex justify-center items-center gap-6">
+      <div className="absolute bottom-28 left-0 right-0 flex justify-center items-center gap-6">
         <button
           onClick={onFileSelect}
           className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white p-4 rounded-full transition-colors"
@@ -730,7 +730,7 @@ function CameraScreen({
 
       {/* エラー表示 */}
       {error && (
-        <div className="absolute bottom-36 left-4 right-4">
+        <div className="absolute bottom-44 left-4 right-4">
           <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-3 backdrop-blur-sm">
             <div className="flex items-center gap-2 text-red-400">
               <AlertCircle className="w-4 h-4" />

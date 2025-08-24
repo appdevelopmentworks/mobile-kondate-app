@@ -69,8 +69,8 @@ export default function HomePage() {
           {/* カメラで食材認識 */}
           <button
             onClick={() => {
-              console.log('🎯 カメラ認識ボタンクリック - /camera-recognitionに遷移します');
-              router.push('/camera-recognition');
+              console.log('🎯 カメラ認識ボタンクリック - /cameraに遷移します');
+              router.push('/camera');
             }}
             className="w-full bg-gradient-to-r from-pink-400 to-rose-400 text-white p-6 rounded-2xl shadow-lg active:scale-95 transition-all duration-200"
           >
